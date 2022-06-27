@@ -9,19 +9,19 @@ import time
 import pathlib
 from datetime import datetime
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Pose
 from std_msgs.msg import Float32MultiArray, Float32
 import dynamic_reconfigure.client
 from pynput.keyboard import Listener, KeyCode
 import tf2_ros
 from pyquaternion import Quaternion
-
-from PointClient import point_client
+from scipy.signal import savgol_filter
 #from pyquaternion import Quaternion
 
 class LfD():
     def __init__(self):
         self.r=rospy.Rate(100)
+        self.pose = Pose()
         self.K_pos=1000
         self.K_ori=30
         self.K_ns=10
@@ -48,6 +48,8 @@ class LfD():
         self.listener = Listener(on_press=self._on_press)
         self.listener.start()
         self.spiral = False
+        self.tfbuffer = tf2_ros.Buffer()
+        self.tflistener = tf2_ros.TransformListener(self.tfbuffer)
 
     def _on_press(self, key):
         # This function runs on the background and checks if a keyboard key was pressed
@@ -234,6 +236,7 @@ class LfD():
 
     def execute(self):
         grip_command_old=0
+        print('entered execute')
         start = PoseStamped()
 
         start.pose.position.x = self.recorded_traj[0][0]
@@ -333,7 +336,7 @@ class LfD():
         rospy.loginfo('moving to the goal point')
         self.go_to_pose(goal)
 
-    def transpose_to_new_box(self):
+    def transpose_to_new_box(self, init_pose, init_ori, new_pose, new_ori):
         tfBuffer = tf2_ros.Buffer()
         listener = tf2_ros.TransformListener(tfBuffer)
 
@@ -346,16 +349,16 @@ class LfD():
 
         # Training box frame
         #p1pos = np.array([0.516573309298, 0.209258280499, 0.111873932258])  # x y z
-        p1pos = np.array([trans1.transform.translation.x, trans1.transform.translation.y, trans1.transform.translation.z])
+        p1pos = init_pose
         #p1orient = Quaternion(0, 1, 0, 0)  # w x y z
-        p1orient = Quaternion(trans1.transform.rotation.w, trans1.transform.rotation.x, trans1.transform.rotation.y, trans1.transform.rotation.z)
+        p1orient = init_ori
 
         # Testing box frame
         #p2pos = np.array([0.558391547136, 0.223972650574, 0.110788910536])
         #p2pos = np.array([0.626262545733,0.0598715897239, 0.113789855194])  # x y z
-        p2pos = np.array([trans2.transform.translation.x, trans2.transform.translation.y, trans2.transform.translation.z])
+        p2pos = new_pose
         #p2orient = Quaternion(0, -0.7071, 0.7071, 0)
-        p2orient = Quaternion(trans2.transform.rotation.w, trans2.transform.rotation.x, trans2.transform.rotation.y, trans2.transform.rotation.z)
+        p2orient = new_ori
         #p2orient = Quaternion(1, 0, 0, 0)
 
         translation_vector_p0p1 = p1pos - p0pos
@@ -423,26 +426,57 @@ class LfD():
 
     def point_quat_to_goal(self, trans, rot):
         rot_matrix = quaternion.as_rotation_matrix(rot)
-        transform = np.append(rot_matrix, [[0, 0, 0]], axis=0)
-        transform = np.append(transform, [[trans[0]], [trans[1]], [trans[2]], [1]], axis=1)
+        transform_icp = np.append(rot_matrix, [[0, 0, 0]], axis=0)
+        transform_icp = np.append(transform_icp, [[trans[0]], [trans[1]], [trans[2]], [1]], axis=1)
+
+        transform_cam = self.tfbuffer.lookup_transform('panda_link0', 'camera_depth_optical_frame_static', rospy.Time.now(), rospy.Duration(1.0))
+            
+        trans_cam = np.array([transform_cam.transform.translation.x, transform_cam.transform.translation.y, 
+                                transform_cam.transform.translation.z])
+        quat_cam = np.quaternion(transform_cam.transform.rotation.w, transform_cam.transform.rotation.x,  
+                                transform_cam.transform.rotation.y, transform_cam.transform.rotation.z)
+        rot_matrix_cam = quaternion.as_rotation_matrix(quat_cam)
+        transform_matrix_cam = np.append(rot_matrix_cam, [[0, 0, 0]], axis=0)
+        transform_matrix_cam = np.append(transform_matrix_cam, [[trans_cam[0]], [trans_cam[1]], [trans_cam[2]], [1]], axis=1)
         for i in range(self.recorded_traj.shape[1]):
             quat_ori = np.quaternion(self.recorded_ori[0][i], self.recorded_ori[1][i], self.recorded_ori[2][i], self.recorded_ori[3][i])
             # Converting the quaternion to rotation matrix, to make a homogenous transformation and transform the points
             # with one matrix operation 'transform @ point'
             point = np.array([self.recorded_traj[0][i], self.recorded_traj[1][i], self.recorded_traj[2][i], 1])
-            new_point = transform @ point
-            print("new_point ", new_point)
+            
+
+            point1 = transform_matrix_cam @ point
+            # print('first ', point1)
+            # point1_other = transform_matrix_cam @ point
+            # print('second ', point1_other)
+            point2 = transform_icp @ point1
+            new_point = np.linalg.inv(transform_matrix_cam) @ point2
+
+            
             self.recorded_traj[0][i] = new_point[0]
             self.recorded_traj[1][i] = new_point[1]
             self.recorded_traj[2][i] = new_point[2]
             # Note 'extra' final rotation by q(0, 1, 0, 0) (180 deg about x axis) since we want gripper facing down
-            new_ori = rot * quat_ori
-            self.recorded_ori[0][i] = new_ori[0]
-            self.recorded_ori[1][i] = new_ori[1]
-            self.recorded_ori[2][i] = new_ori[2]
-            self.recorded_ori[3][i] = new_ori[3]
-            print("new_ori ", new_ori)
+            new_ori =  quat_cam.inverse() * rot * quat_cam * quat_ori
     
+            self.recorded_ori[0][i] = new_ori.w
+            self.recorded_ori[1][i] = new_ori.x
+            self.recorded_ori[2][i] = new_ori.y
+            self.recorded_ori[3][i] = new_ori.z
+            
+    
+    # def test_service(x, y):
+    #     rospy.wait_for_service('add_two_ints')
+    #     try:
+    #         add_two_ints = rospy.ServiceProxy('add_two_ints', AddTwoInts)
+    #         resp1 = add_two_ints(x, y)
+    #         return resp1.sum
+    #     except rospy.ServiceException as e:
+    #         print("Service call failed: %s"%e
+
+    def sub_callback(self, data):
+        self.pose = data
+
 
 #%%
 if __name__ == '__main__':
@@ -451,7 +485,7 @@ if __name__ == '__main__':
     LfD=LfD()
     time.sleep(1)
 #%%
-    print(sys.argv)
+    print(len(sys.argv))
     if len(sys.argv)<3:
         LfD.traj_rec()
 
@@ -461,35 +495,40 @@ if __name__ == '__main__':
         print("Recorded trajectory x",LfD.recorded_traj[0])
         print("Current Position", LfD.curr_pos)
 
-    pose = PointClient()
-    trans = np.array([pose.pose.position.x, pose.pose.position.y, pose.pose.position.z])
-    rot = np.quaternion(pose.pose.orientation.w, pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z)
-    LfD.point_quat_to_goal(trans, rot)
+    
+    rospy.Subscriber("/trans_rot", Pose, LfD.sub_callback)
+    rospy.sleep(1)
+    trans = np.array([LfD.pose.position.x, LfD.pose.position.y, LfD.pose.position.z])
+    rot = np.quaternion(LfD.pose.orientation.w, LfD.pose.orientation.x, LfD.pose.orientation.y, LfD.pose.orientation.z)
+    print(rot)
+    if sys.argv[-2]=='p':
+        LfD.point_quat_to_goal(trans, rot)
 
 
     
 
 #%%
 
-    start = PoseStamped()
-#
-    start.pose.position.x = LfD.recorded_traj[0][0]
-    start.pose.position.y = LfD.recorded_traj[1][0]
-    start.pose.position.z = LfD.recorded_traj[2][0]
+#     start = PoseStamped()
+# #
+#     start.pose.position.x = LfD.recorded_traj[0][0]
+#     start.pose.position.y = LfD.recorded_traj[1][0]
+#     start.pose.position.z = LfD.recorded_traj[2][0]
 
-    start.pose.orientation.w = LfD.recorded_ori[0][0]
-    start.pose.orientation.x = LfD.recorded_ori[1][0]
-    start.pose.orientation.y = LfD.recorded_ori[2][0]
-    start.pose.orientation.z = LfD.recorded_ori[3][0]
-    LfD.go_to_pose(start)
+#     start.pose.orientation.w = LfD.recorded_ori[0][0]
+#     start.pose.orientation.x = LfD.recorded_ori[1][0]
+#     start.pose.orientation.y = LfD.recorded_ori[2][0]
+#     start.pose.orientation.z = LfD.recorded_ori[3][0]
+#     LfD.go_to_pose(start)
 
 
 #%%
     LfD.execute()
 
-    print('Save new changes')
 
-    LfD.save(sys.argv[-1])
+    if len(sys.argv)<3:
+        print('Save new changes')
+        LfD.save(sys.argv[-1])
 
 
     # goal = PoseStamped()
