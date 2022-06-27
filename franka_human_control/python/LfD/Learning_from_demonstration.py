@@ -15,6 +15,7 @@ import dynamic_reconfigure.client
 from pynput.keyboard import Listener, KeyCode
 import tf2_ros
 from pyquaternion import Quaternion
+from scipy.signal import savgol_filter
 #from pyquaternion import Quaternion
 
 class LfD():
@@ -140,7 +141,10 @@ class LfD():
             self.recorded_gripper = np.c_[self.recorded_gripper, self.grip_value]
 
             self.r.sleep()
-
+            
+        self.recorded_traj = savgol_filter(self.recorded_traj, 51, 3)
+        self.recorded_ori = savgol_filter(self.recorded_ori, 51, 3)       
+    # control robot to desired goal position
     # control robot to desired goal position
     def go_to_pose(self, goal_pose):
         # the goal pose should be of type PoseStamped. E.g. goal_pose=PoseStampled()
