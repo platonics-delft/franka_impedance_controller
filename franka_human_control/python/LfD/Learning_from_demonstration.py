@@ -15,6 +15,8 @@ import dynamic_reconfigure.client
 from pynput.keyboard import Listener, KeyCode
 import tf2_ros
 from pyquaternion import Quaternion
+
+from PointClient import point_client
 #from pyquaternion import Quaternion
 
 class LfD():
@@ -419,6 +421,27 @@ class LfD():
             tfBuffer.transform(currentPose, '/baselink')            #Transform back to base
             LfD.recorded_traj[POSE] = currentPose                   #Save Pose
 
+    def point_quat_to_goal(self, trans, rot):
+        rot_matrix = quaternion.as_rotation_matrix(rot)
+        transform = np.append(rot_matrix, [[0, 0, 0]], axis=0)
+        transform = np.append(transform, [[trans[0]], [trans[1]], [trans[2]], [1]], axis=1)
+        for i in range(self.recorded_traj.shape[1]):
+            quat_ori = np.quaternion(self.recorded_ori[0][i], self.recorded_ori[1][i], self.recorded_ori[2][i], self.recorded_ori[3][i])
+            # Converting the quaternion to rotation matrix, to make a homogenous transformation and transform the points
+            # with one matrix operation 'transform @ point'
+            point = np.array([self.recorded_traj[0][i], self.recorded_traj[1][i], self.recorded_traj[2][i], 1])
+            new_point = transform @ point
+            print("new_point ", new_point)
+            self.recorded_traj[0][i] = new_point[0]
+            self.recorded_traj[1][i] = new_point[1]
+            self.recorded_traj[2][i] = new_point[2]
+            # Note 'extra' final rotation by q(0, 1, 0, 0) (180 deg about x axis) since we want gripper facing down
+            new_ori = rot * quat_ori
+            self.recorded_ori[0][i] = new_ori[0]
+            self.recorded_ori[1][i] = new_ori[1]
+            self.recorded_ori[2][i] = new_ori[2]
+            self.recorded_ori[3][i] = new_ori[3]
+            print("new_ori ", new_ori)
     
 
 #%%
@@ -437,6 +460,11 @@ if __name__ == '__main__':
         print("Recorded trajectory full",LfD.recorded_traj)
         print("Recorded trajectory x",LfD.recorded_traj[0])
         print("Current Position", LfD.curr_pos)
+
+    pose = PointClient()
+    trans = np.array([pose.pose.position.x, pose.pose.position.y, pose.pose.position.z])
+    rot = np.quaternion(pose.pose.orientation.w, pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z)
+    LfD.point_quat_to_goal(trans, rot)
 
 
     
