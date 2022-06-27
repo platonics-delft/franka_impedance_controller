@@ -15,7 +15,6 @@ import dynamic_reconfigure.client
 from pynput.keyboard import Listener, KeyCode
 import tf2_ros
 from pyquaternion import Quaternion
-from scipy.signal import savgol_filter
 #from pyquaternion import Quaternion
 
 class LfD():
@@ -24,7 +23,7 @@ class LfD():
         self.K_pos=1000
         self.K_ori=30
         self.K_ns=10
-        self.feedback=np.zeros(3)
+        self.feedback=np.zeros(4)
         self.feedback_gain=0.002
         self.length_scale = 0.1
         self.correction_window = 300
@@ -44,9 +43,9 @@ class LfD():
         self.goal_sub = rospy.Subscriber('/goal_pose', PoseStamped, self.goal_checker)
         self.grip_pub = rospy.Publisher('/gripper_online', Float32, queue_size=0)
         self.set_K = dynamic_reconfigure.client.Client('/dynamic_reconfigure_compliance_param_node')
-        # self.stiff_pub = rospy.Publisher('/stiffness', Float32MultiArray, queue_size=0) 
         self.listener = Listener(on_press=self._on_press)
         self.listener.start()
+        self.spiral = False
 
     def _on_press(self, key):
         # This function runs on the background and checks if a keyboard key was pressed
@@ -80,45 +79,35 @@ class LfD():
             grip_command.data = self.grip_value
             self.grip_pub.publish(grip_command)
             print('pressed o grip_value is ', grip_command.data)
+        if key == KeyCode.from_char('f'):
+            self.feedback[3] = 1
+        if key == KeyCode.from_char('x'):
+            self.spiral = True
 
-    def perform_spiral(self, goal):
-        print("in performing spiral")
-        radius = 0.005
-        orig_goal = goal
-        orig_goal_x=np.copy(goal.pose.position.x) 
-        orig_goal_y=np.copy(goal.pose.position.y)
-        for i in range(300 * 10):
-            goal.pose.position.x = orig_goal.pose.position.x + radius*i / 300 * np.cos(2 * np.pi * i / 300)
-            goal.pose.position.y = orig_goal.pose.position.y + radius*i / 300 * np.sin(2 * np.pi * i / 300)
-            goal.pose.position.x = orig_goal_x + radius*i / 300 * np.cos(2 * np.pi * i / 300)
-            goal.pose.position.y = orig_goal_y + radius*i / 300 * np.sin(2 * np.pi * i / 300)
-            self.goal_pub.publish(goal)
-            self.r.sleep()
-            
     def ee_pos_callback(self, data):
         self.curr_pos = np.array([data.pose.position.x, data.pose.position.y, data.pose.position.z])
         self.curr_ori = np.array([data.pose.orientation.w, data.pose.orientation.x, data.pose.orientation.y, data.pose.orientation.z])
         #rospy.loginfo([data.x, data.y, data.z])
+
+    def force_feedback_checker(self, feedback):
+        force = feedback.wrench.force
+        torque = feedback.wrench.torque
+        self.torque_z = torque.z
+        self.force_feedback = np.linalg.norm(np.array([force.x, force.y, force.z]))
 
     def gripper_callback(self, data):
         self.width =data.position[7]+data.position[8]
 
     def set_stiffness(self, k_t1, k_t2, k_t3,k_r1,k_r2,k_r3, k_ns):
         
-        #set_K = dynamic_reconfigure.client.Client('/dynamic_reconfigure_compliance_param_node', config_callback=None)
+        set_K = dynamic_reconfigure.client.Client('/dynamic_reconfigure_compliance_param_node', config_callback=None)
         self.set_K.update_configuration({"translational_stiffness_X": k_t1})
         self.set_K.update_configuration({"translational_stiffness_Y": k_t2})
         self.set_K.update_configuration({"translational_stiffness_Z": k_t3})        
         self.set_K.update_configuration({"rotational_stiffness_X": k_r1}) 
         self.set_K.update_configuration({"rotational_stiffness_Y": k_r2}) 
         self.set_K.update_configuration({"rotational_stiffness_Z": k_r3})
-        self.set_K.update_configuration({"nullspace_stiffness": k_ns})
-    
-    # def set_stiffness(self, k_t1, k_t2, k_t3,k_r1,k_r2,k_r3, k_ns):
-    #     stiff_des = Float32MultiArray()
-    #     stiff_des.data = np.array([k_t1,k_t2, k_t3, k_r1, k_r2, k_r3, k_ns]).astype(np.float32)
-    # #    print(stiff_des)
-    #     self.stiff_pub.publish(stiff_des)   
+        self.set_K.update_configuration({"nullspace_stiffness": k_ns}) 
 
     def traj_rec(self, trigger=0.005, rec_position=True, rec_orientation=True):
         # trigger for starting the recording
@@ -135,7 +124,6 @@ class LfD():
         # self.set_stiffness(0.0, 0.0, 0.0 , 0.0, 0.0, 0.0, 0.0)
 
         init_pos = self.curr_pos
-        print(init_pos)
         vel = 0
         print("Move robot to start recording.")
         while vel < trigger:
@@ -155,10 +143,9 @@ class LfD():
             self.recorded_gripper = np.c_[self.recorded_gripper, self.grip_value]
 
             self.r.sleep()
-
         self.recorded_traj = savgol_filter(self.recorded_traj, 51, 3)
-        self.recorded_ori = savgol_filter(self.recorded_ori, 51, 3)       
-    # control robot to desired goal position
+        self.recorded_ori = savgol_filter(self.recorded_ori, 51, 3)
+
     # control robot to desired goal position
     def go_to_pose(self, goal_pose):
         # the goal pose should be of type PoseStamped. E.g. goal_pose=PoseStampled()
@@ -207,7 +194,9 @@ class LfD():
         goal.pose.position.z = z[0]
         
         
-        quat=np.slerp_vectorized(q_start, q_goal, 0.0)
+        quat = np.slerp_vectorized(q_start, q_goal, 0.0)
+        #quat = np.slerp(q_start, q_goal, 0.0)
+
         goal.pose.orientation.x = quat.x
         goal.pose.orientation.y = quat.y
         goal.pose.orientation.z = quat.z
@@ -228,6 +217,7 @@ class LfD():
             goal.pose.position.y = y[i]
             goal.pose.position.z = z[i]
             quat=np.slerp_vectorized(q_start, q_goal, i/step_num)
+            #quat = slerp(q_start, q_goal, i / step_num)
             #print("quat", quat) 
             goal.pose.orientation.x = quat.x
             goal.pose.orientation.y = quat.y
@@ -241,9 +231,24 @@ class LfD():
         return np.exp(-d**2/self.length_scale**2)
 
     def execute(self):
-        self.new_grip = np.copy(self.recorded_gripper)
         grip_command_old=0
+        start = PoseStamped()
+
+        start.pose.position.x = self.recorded_traj[0][0]
+        start.pose.position.y = self.recorded_traj[1][0]
+        start.pose.position.z = self.recorded_traj[2][0]
+
+        start.pose.orientation.w = self.recorded_ori[0][0]
+        start.pose.orientation.x = self.recorded_ori[1][0]
+        start.pose.orientation.y = self.recorded_ori[2][0]
+        start.pose.orientation.z = self.recorded_ori[3][0]
+        self.go_to_pose(start)
+
         for i in range (self.recorded_traj.shape[1]):
+            if self.spiral:
+                break
+            if self.end:
+                break
             goal = PoseStamped()
 
             goal.header.seq = 1
@@ -274,10 +279,12 @@ class LfD():
                     self.recorded_traj[1][j] += y
                     self.recorded_traj[2][j] += z
 
-                print('first value')
-                print(self.recorded_traj[:,i])
-                print('new value')
-                self.feedback = np.zeros(3)
+                if self.feedback[3] > 0:
+                    self.recorded_traj = np.delete(self.recorded_traj, np.arange(np.min([i + 1, self.recorded_traj.shape[1]]),np.min([i + 6, self.recorded_traj.shape[1]])), 1)  # this removes the ith column
+                    self.recorded_ori = np.delete(self.recorded_ori, np.arange(np.min([i + 1, self.recorded_ori.shape[1]]),np.min([i + 6, self.recorded_ori.shape[1]])), 1)
+                    self.recorded_gripper = np.delete(self.recorded_gripper, np.arange(np.min([i + 1, self.recorded_ori.shape[1]]),np.min([i + 6, self.recorded_ori.shape[1]])), 1)
+                self.feedback = np.zeros(4)
+                print('new_length ', self.recorded_traj.shape[1])
 
             self.goal_pub.publish(goal)
             
@@ -292,17 +299,30 @@ class LfD():
 
             grip_command_old = grip_command.data
             self.r.sleep()
+            if i == self.recorded_traj.shape[1]-1:
+                break
+        if self.spiral:
+            self.perform_spiral(goal)
 
+    def perform_spiral(self, goal):
+        print("in performing spiral")
+        radius = 0.005
+        orig_goal_x = np.copy(goal.pose.position.x)
+        orig_goal_y = np.copy(goal.pose.position.y)
+        for i in range(300 * 10):
+            goal.pose.position.x = orig_goal_x + radius*i / 300 * np.cos(2 * np.pi * i / 300)
+            goal.pose.position.y = orig_goal_y + radius*i / 300 * np.sin(2 * np.pi * i / 300)
+            self.goal_pub.publish(goal)
+            self.r.sleep()
 
     def save(self, data='last'):
         np.savez(str(pathlib.Path().resolve()) + '/data/' + str(data) + '.npz',
                  traj=self.recorded_traj,
                  ori=self.recorded_ori,
-                 grip=self.new_grip)
+                 grip=self.recorded_gripper)
 
     def load(self, file='last'):
         data = np.load(str(pathlib.Path().resolve()) + '/data/' + str(file) + '.npz')
-
         self.recorded_traj = data['traj']
         self.recorded_ori = data['ori']
         self.recorded_gripper = data['grip']
@@ -399,6 +419,7 @@ class LfD():
             tfBuffer.transform(currentPose, '/baselink')            #Transform back to base
             LfD.recorded_traj[POSE] = currentPose                   #Save Pose
 
+    
 
 #%%
 if __name__ == '__main__':
