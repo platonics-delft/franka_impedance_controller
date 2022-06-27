@@ -81,6 +81,20 @@ class LfD():
             self.grip_pub.publish(grip_command)
             print('pressed o grip_value is ', grip_command.data)
 
+    def perform_spiral(self, goal):
+        print("in performing spiral")
+        radius = 0.005
+        orig_goal = goal
+        orig_goal_x=np.copy(goal.pose.position.x) 
+        orig_goal_y=np.copy(goal.pose.position.y)
+        for i in range(300 * 10):
+            goal.pose.position.x = orig_goal.pose.position.x + radius*i / 300 * np.cos(2 * np.pi * i / 300)
+            goal.pose.position.y = orig_goal.pose.position.y + radius*i / 300 * np.sin(2 * np.pi * i / 300)
+            goal.pose.position.x = orig_goal_x + radius*i / 300 * np.cos(2 * np.pi * i / 300)
+            goal.pose.position.y = orig_goal_y + radius*i / 300 * np.sin(2 * np.pi * i / 300)
+            self.goal_pub.publish(goal)
+            self.r.sleep()
+            
     def ee_pos_callback(self, data):
         self.curr_pos = np.array([data.pose.position.x, data.pose.position.y, data.pose.position.z])
         self.curr_ori = np.array([data.pose.orientation.w, data.pose.orientation.x, data.pose.orientation.y, data.pose.orientation.z])
@@ -141,7 +155,7 @@ class LfD():
             self.recorded_gripper = np.c_[self.recorded_gripper, self.grip_value]
 
             self.r.sleep()
-            
+
         self.recorded_traj = savgol_filter(self.recorded_traj, 51, 3)
         self.recorded_ori = savgol_filter(self.recorded_ori, 51, 3)       
     # control robot to desired goal position
