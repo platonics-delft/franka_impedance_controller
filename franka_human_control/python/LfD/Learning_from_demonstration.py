@@ -444,13 +444,18 @@ class LfD():
             # with one matrix operation 'transform @ point'
             point = np.array([self.recorded_traj[0][i], self.recorded_traj[1][i], self.recorded_traj[2][i], 1])
             
+            print('first point ', point)
 
-            point1 = transform_matrix_cam @ point
-            # print('first ', point1)
+            point1 = np.linalg.inv(transform_matrix_cam) @ point
+            print("point_to_cam", point1)
             # point1_other = transform_matrix_cam @ point
-            # print('second ', point1_other)
+            
             point2 = transform_icp @ point1
-            new_point = np.linalg.inv(transform_matrix_cam) @ point2
+            print('point after icp ', point2)
+
+            new_point = transform_matrix_cam @ point2
+            print('point final (back to base)', new_point)
+            # new_point = np.linalg.inv(transform_matrix_cam) @ point1
 
             
             self.recorded_traj[0][i] = new_point[0]
@@ -458,7 +463,10 @@ class LfD():
             self.recorded_traj[2][i] = new_point[2]
             # Note 'extra' final rotation by q(0, 1, 0, 0) (180 deg about x axis) since we want gripper facing down
             new_ori =  quat_cam.inverse() * rot * quat_cam * quat_ori
-    
+            print('init ori ', quat_ori)
+            print('new ori ', new_ori)
+            # new_ori =  quat_cam.inverse() * quat_cam * quat_ori
+
             self.recorded_ori[0][i] = new_ori.w
             self.recorded_ori[1][i] = new_ori.x
             self.recorded_ori[2][i] = new_ori.y
