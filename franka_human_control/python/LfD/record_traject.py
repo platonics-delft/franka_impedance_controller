@@ -16,9 +16,8 @@ This scripts records trajectories and saves them in a specific folder
 
 class Pipeline:
     def __init__(self):
-        self.tasks = np.array(['PUSH_BLUE_BUTTON','GRAB_KEY','PLACE_KEY','TURN_KEY','GRAB_ETHER','MOVE_ETHER','PLACE_ETHER',
-                            'OPEN_BATTERY_BOX','EJECT_BATTERY_1','PICK_BATTERY_1','PLACE_BATTERY_2','EJECT_BATTERY_2',
-                            'PICK_BATTERY_2','PLACE_BATTERY_2','PUSH_BATTERIES','PUSH_RED_BUTTON'])
+        self.tasks = np.array(['PUSH_BLUE_BUTTON','GRAB_KEY','GRAB_ETHER','OPEN_BATTERY_BOX','EJECT_BATTERIES',
+                            'PICK_BATTERY_1','PICK_BATTERY_2','PUSH_BATTERIES','PUSH_RED_BUTTON'])
 
         self.methods = np.array(['RECORD', 'PLAYBACK'])
 
@@ -38,26 +37,19 @@ class Pipeline:
 
 
     def select_task(self):
-        while not (self.task_int in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]):
+        while not (self.task_int in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]):
             print('\n')
             print('PLEASE SELECT AN ACTION:')
             print('0. STOP_PROGRAM')
             print('1. PUSH_BLUE_BUTTON')  
             print('2. GRAB_KEY')
-            print('3. PLACE_KEY')
-            print('4. TURN_KEY')
-            print('5. GRAB_ETHER')
-            print('6. MOVE_ETHER')
-            print('7. PLACE_ETHER')
-            print('8. OPEN_BATTERY_BOX')
-            print('9. EJECT_BATTERY_1')
-            print('10. PICK_BATTERY_1')
-            print('11. PLACE_BATTERY_1')
-            print('12. EJECT_BATTERY_2')
-            print('13. PICK_BATTERY_2')
-            print('14. PLACE_BATTERY_2')
-            print('15. PUSH_BATTERIES')
-            print('16. PUSH_RED_BUTTON')
+            print('3. GRAB_ETHER')
+            print('4. OPEN_BATTERY_BOX')
+            print('5. EJECT_BATTERIES')
+            print('6. PICK_BATTERY_1')
+            print('7. PICK_BATTERY_2')
+            print('8. PUSH_BATTERIES')
+            print('9. PUSH_RED_BUTTON')
 
             try:
                 self.task_int = int(input('\n'))

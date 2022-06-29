@@ -47,6 +47,7 @@ class LfD():
         self.force_feedback_sub = rospy.Subscriber('/force_torque_ext', WrenchStamped, self.force_feedback_checker)
         self.force_feedback = 0.
         self.set_K = dynamic_reconfigure.client.Client('/dynamic_reconfigure_compliance_param_node')
+        self.joint_states_sub = rospy.Subscriber("/joint_states", JointState, self.joint_states_callback)
         self.listener = Listener(on_press=self._on_press)
         self.listener.start()
         self.spiral = False
@@ -128,11 +129,22 @@ class LfD():
         set_K = dynamic_reconfigure.client.Client('/dynamic_reconfigure_compliance_param_node', config_callback=None)
         self.set_K.update_configuration({"translational_stiffness_X": k_t1})
         self.set_K.update_configuration({"translational_stiffness_Y": k_t2})
-        self.set_K.update_configuration({"translational_stiffness_Z": 500})
+        self.set_K.update_configuration({"translational_stiffness_Z": k_t3})
         self.set_K.update_configuration({"rotational_stiffness_X": k_r1}) 
         self.set_K.update_configuration({"rotational_stiffness_Y": k_r2}) 
         self.set_K.update_configuration({"rotational_stiffness_Z": k_r3})
         self.set_K.update_configuration({"nullspace_stiffness": k_ns}) 
+
+    def set_stiffness_key(self):
+        self.set_stiffness(4000, 4000, 4000, 30, 30, 30, 0)
+
+    def joint_states_callback(self, data):
+        self.curr_joint = data.position[:7]
+
+    def set_configuration(self, joint):
+        joint_des = Float32MultiArray()
+        joint_des.data = np.array(joint).astype(np.float32)
+        self.configuration_pub.publish(joint_des)
 
     def traj_rec(self, trigger=0.005, rec_position=True, rec_orientation=True):
         # trigger for starting the recording
@@ -229,10 +241,18 @@ class LfD():
 
         self.goal_pub.publish(goal)
 
-        self.set_stiffness(self.K_pos, self.K_pos, self.K_pos ,self.K_ori,self.K_ori,self.K_ori, 0.0)
+        # change this accordingly for now
+        self.set_stiffness_key()
 
         goal = PoseStamped()
         for i in range(step_num):
+            if self.curr_joint[6] > 2.85 or self.curr_joint[6] < -2.85:
+                desired_joints = self.curr_joint
+                desired_joints[6] = -desired_joints[6]
+                self.set_configuration(desired_joints)
+                self.set_stiffness(self.K_pos, self.K_pos, self.K_pos, self.K_ori, self.K_ori, 0, 5)
+                rospy.sleep(5.0)
+                self.set_stiffness(self.K_pos, self.K_pos, self.K_pos, self.K_ori, self.K_ori, self.K_ori, 5)
             now = time.time()         
             goal.header.seq = 1
             goal.header.stamp = rospy.Time.now()
@@ -332,7 +352,7 @@ class LfD():
             if i == self.recorded_traj.shape[1]-1:
                 break
         if self.spiral:
-            self.perform_spiral(goal)
+            self.perf_spiral(goal)
 
     def save(self, data='last'):
         np.savez(str(pathlib.Path().resolve()) + '/data/' + str(data) + '.npz',
@@ -442,7 +462,7 @@ class LfD():
     #     rot_matrix = quaternion.as_rotation_matrix(rot)
     #     transform_icp = np.append(rot_matrix, [[0, 0, 0]], axis=0)
     #     transform_icp = np.append(transform_icp, [[trans[0]], [trans[1]], [trans[2]], [1]], axis=1)
-    #
+
     #     transform_cam = self.tfbuffer.lookup_transform('panda_link0', 'camera_depth_optical_frame_static', rospy.Time.now(), rospy.Duration(1.0))
     #
     #     trans_cam = np.array([transform_cam.transform.translation.x, transform_cam.transform.translation.y,
