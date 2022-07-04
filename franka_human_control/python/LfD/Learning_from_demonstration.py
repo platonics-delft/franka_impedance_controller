@@ -44,6 +44,7 @@ class LfD():
         self.goal_pub = rospy.Publisher('/equilibrium_pose', PoseStamped, queue_size=0)
         self.goal_sub = rospy.Subscriber('/goal_pose', PoseStamped, self.goal_checker)
         self.grip_pub = rospy.Publisher('/gripper_online', Float32, queue_size=0)
+        self.pose_ref_to_new_sub = rospy.Subscriber('/pose_ref_to_new', PoseStamped, self.pose_ref_to_new_callback)
         self.force_feedback_sub = rospy.Subscriber('/force_torque_ext', WrenchStamped, self.force_feedback_checker)
         self.force_feedback = 0.
         self.set_K = dynamic_reconfigure.client.Client('/dynamic_reconfigure_compliance_param_node')
@@ -51,6 +52,7 @@ class LfD():
         self.listener = Listener(on_press=self._on_press)
         self.listener.start()
         self.spiral = False
+        self.pose_ref_to_new = PoseStamped()
         # self.tfbuffer = tf2_ros.Buffer()
         # self.tflistener = tf2_ros.TransformListener(self.tfbuffer)
 
@@ -91,12 +93,18 @@ class LfD():
         if key == KeyCode.from_char('x'):
             self.spiral = True
 
+
     def ee_pos_callback(self, data):
         self.curr_pos = np.array([data.pose.position.x, data.pose.position.y, data.pose.position.z])
         self.curr_ori = np.array([data.pose.orientation.w, data.pose.orientation.x, data.pose.orientation.y, data.pose.orientation.z])
         #rospy.loginfo([data.x, data.y, data.z])
 
+    def pose_ref_to_new_callback(self, pose_ref_to_new):
+        self.pose_ref_to_new = pose_ref_to_new
+
+
     def perf_spiral(self, goal):
+        print('entered perf_spiral')
         threshold = 4.
         w = 0.3
         if np.abs(self.force_feedback) < threshold:
@@ -109,8 +117,8 @@ class LfD():
         print('spiraling...')
         print("position x: ", goal.pose.position.x)
         print("position y: ", goal.pose.position.y)
-        goal.pose.position.x = goal.pose.position.x + np.cos(w * self.time_spiral) * 0.05 * self.time_spiral
-        goal.pose.position.y = goal.pose.position.y + np.sin(w * self.time_spiral) * 0.05 * self.time_spiral
+        goal.pose.position.x = goal.pose.position.x + np.cos(w * self.time_spiral) * 0.02 * self.time_spiral
+        goal.pose.position.y = goal.pose.position.y + np.sin(w * self.time_spiral) * 0.02 * self.time_spiral
         self.time_spiral += 1./100.
 
         return goal
@@ -194,7 +202,7 @@ class LfD():
         squared_dist = np.sum(np.subtract(start, goal_)**2, axis=0)
         dist = np.sqrt(squared_dist)
         print("dist", dist)
-        interp_dist = 0.001/3  # [m]
+        interp_dist = 0.001/1.5  # [m]
         step_num_lin = math.floor(dist / interp_dist)
         
         print("num of steps linear", step_num_lin)
@@ -211,7 +219,7 @@ class LfD():
         inner_prod=q_start.x*q_goal.x+q_start.y*q_goal.y+q_start.z*q_goal.z+q_start.w*q_goal.w
         theta= np.arccos(np.abs(inner_prod))
         print(theta)
-        interp_dist_polar = 0.001/3
+        interp_dist_polar = 0.001/1.5
         step_num_polar = math.floor(theta / interp_dist_polar)
 
         
@@ -292,10 +300,7 @@ class LfD():
         self.go_to_pose(start)
 
         for i in range (self.recorded_traj.shape[1]):
-            if self.spiral:
-                break
-            if self.end:
-                break
+            print(self.spiral)
             goal = PoseStamped()
 
             goal.header.seq = 1
@@ -370,6 +375,38 @@ class LfD():
         rospy.loginfo('moving to the goal point')
         self.go_to_pose(goal)
 
+    def transform_trajectory(self):
+        # rospy.sleep(1)
+        transf_pose = self.pose_ref_to_new
+
+        trans = np.array([transf_pose.pose.position.x, transf_pose.pose.position.y, transf_pose.pose.position.z])
+        quat_ref_to_new = np.quaternion(transf_pose.pose.orientation.w, transf_pose.pose.orientation.x,
+                            transf_pose.pose.orientation.y, transf_pose.pose.orientation.z)
+
+        rot_matrix = quaternion.as_rotation_matrix(quat_ref_to_new)
+        transform_ref_to_new = np.append(rot_matrix, [[0, 0, 0]], axis=0)
+        transform_ref_to_new = np.append(transform_ref_to_new, [[trans[0]], [trans[1]], [trans[2]], [1]], axis=1)
+
+        for i in range(self.recorded_traj.shape[1]):
+            quat_ori = np.quaternion(self.recorded_ori[0][i], self.recorded_ori[1][i], self.recorded_ori[2][i],
+                                     self.recorded_ori[3][i])
+            # Converting the quaternion to rotation matrix, to make a homogenous transformation and transform the points
+            # with one matrix operation 'transform @ point'
+            point = np.array([self.recorded_traj[0][i], self.recorded_traj[1][i], self.recorded_traj[2][i], 1])
+
+            new_point = transform_ref_to_new @ point
+
+            self.recorded_traj[0][i] = new_point[0]
+            self.recorded_traj[1][i] = new_point[1]
+            self.recorded_traj[2][i] = new_point[2]
+            # Note 'extra' final rotation by q(0, 1, 0, 0) (180 deg about x axis) since we want gripper facing down
+            new_ori = quat_ref_to_new * quat_ori
+
+            self.recorded_ori[0][i] = new_ori.w
+            self.recorded_ori[1][i] = new_ori.x
+            self.recorded_ori[2][i] = new_ori.y
+            self.recorded_ori[3][i] = new_ori.z
+
     # def transpose_to_new_box(self, init_pose, init_ori, new_pose, new_ori):
     #     tfBuffer = tf2_ros.Buffer()
     #     listener = tf2_ros.TransformListener(tfBuffer)
@@ -399,23 +436,23 @@ class LfD():
     #     translation_vector_p0p2 = p2pos - p0pos
     #     translation_vector_p1p2 = p2pos - p1pos
     #
-    #     #print('Original pos in global frame', LfD.recorded_traj[:, 2])
+    #     #print('Original pos in global frame', lfd.recorded_traj[:, 2])
     #
     #     self.recorded_traj[0, :] -= translation_vector_p0p1[0]
     #     self.recorded_traj[1, :] -= translation_vector_p0p1[1]
     #     self.recorded_traj[2, :] -= translation_vector_p0p1[2]
-    #     #print('Original pos in training box frame', LfD.recorded_traj[:, 2])
+    #     #print('Original pos in training box frame', lfd.recorded_traj[:, 2])
     #
-    #     for i in range(len(LfD.recorded_traj[0, :])):
-    #         self.recorded_traj[:, i] = p1orient.inverse.rotate(LfD.recorded_traj[:, i])
-    #         self.recorded_traj[:, i] = p2orient.rotate(LfD.recorded_traj[:, i])
-    #     #print('Rotated ', LfD.recorded_traj[:, 2])
+    #     for i in range(len(lfd.recorded_traj[0, :])):
+    #         self.recorded_traj[:, i] = p1orient.inverse.rotate(lfd.recorded_traj[:, i])
+    #         self.recorded_traj[:, i] = p2orient.rotate(lfd.recorded_traj[:, i])
+    #     #print('Rotated ', lfd.recorded_traj[:, 2])
     #
     #     self.recorded_traj[0, :] += translation_vector_p0p2[0]
     #     self.recorded_traj[1, :] += translation_vector_p0p2[1]
     #     self.recorded_traj[2, :] += translation_vector_p0p2[2]
     #
-    #     #print('Translated pos in training box frame', LfD.recorded_traj)
+    #     #print('Translated pos in training box frame', lfd.recorded_traj)
     #
     # def transpose_to_new_box_revised(self):
     #     tfBuffer = tf2_ros.Buffer()
@@ -427,28 +464,28 @@ class LfD():
     #
     #     #Get 3d carthesian data in the baselink
     #     #Load data and make sure it is PoseStamped with frame, not just xyz and wxyz
-    #     LfD.recorded_traj.header='/baselink'
+    #     lfd.recorded_traj.header='/baselink'
     #
     #     #Transfrom 3d carthesian data from baselink to reference box
-    #     #LfD.recorded_traj = trans_to_ref(LfD.recorded_traj, header='/referenceBox')
-    #     #LfD.recorded_traj = tfBuffer.transform(LfD.recorded_traj, 'referenceBox')
+    #     #lfd.recorded_traj = trans_to_ref(lfd.recorded_traj, header='/referenceBox')
+    #     #lfd.recorded_traj = tfBuffer.transform(lfd.recorded_traj, 'referenceBox')
     #
     #     #Do it stepwise for each pose if a full list is not available
-    #     for POSE in range(len(LfD.recorded_traj)):
-    #         LfD.recorded_traj[POSE] = tfBuffer.transform(LfD.recorded_traj[POSE], '/referenceBox')
+    #     for POSE in range(len(lfd.recorded_traj)):
+    #         lfd.recorded_traj[POSE] = tfBuffer.transform(lfd.recorded_traj[POSE], '/referenceBox')
     #
     #     #Change the header to detected box
-    #     LfD.recorded_traj.header = '/detectedBox'
+    #     lfd.recorded_traj.header = '/detectedBox'
     #
     #     #Transform back from detected box to base frame
-    #     #LfD.recorded_traj = trans_to_base(LfD.recorded_traj, header='/baselink')
-    #     for POSE in range(len(LfD.recorded_traj)):
-    #         LfD.recorded_traj[POSE] = tfBuffer.transform(LfD.recorded_traj[POSE], '/baselink')
+    #     #lfd.recorded_traj = trans_to_base(lfd.recorded_traj, header='/baselink')
+    #     for POSE in range(len(lfd.recorded_traj)):
+    #         lfd.recorded_traj[POSE] = tfBuffer.transform(lfd.recorded_traj[POSE], '/baselink')
     #
     #
     #     #Put everything in a single loop
-    #     for POSE in range(len(LfD.recorded_traj)):
-    #         currentPose = LfD.recorded_traj[POSE]                   #Get Pose
+    #     for POSE in range(len(lfd.recorded_traj)):
+    #         currentPose = lfd.recorded_traj[POSE]                   #Get Pose
     #         currentPose = PoseStamped()                             # BLANK FOR TESTING
     #         #currentPose.header.stamp = rospy.Time.now()             #Set time to now, might not be needed
     #         currentPose.header.frame_id = '/baselink'               #Set right header
@@ -456,7 +493,7 @@ class LfD():
     #
     #         currentPose.header.frame_id = '/detectedBox'            #Move box by changing header
     #         tfBuffer.transform(currentPose, '/baselink')            #Transform back to base
-    #         LfD.recorded_traj[POSE] = currentPose                   #Save Pose
+    #         lfd.recorded_traj[POSE] = currentPose                   #Save Pose
     #
     # def point_quat_to_goal(self, trans, rot):
     #     rot_matrix = quaternion.as_rotation_matrix(rot)
@@ -522,7 +559,7 @@ class LfD():
 
 #%%
 if __name__ == '__main__':
-    rospy.init_node('LfD', anonymous=True)
+    rospy.init_node('lfd', anonymous=True)
 #%%
     LfD=LfD()
     time.sleep(1)
@@ -538,13 +575,13 @@ if __name__ == '__main__':
         print("Current Position", LfD.curr_pos)
 
 
-    # rospy.Subscriber("/trans_rot", Pose, LfD.sub_callback)
+    # rospy.Subscriber("/trans_rot", Pose, lfd.sub_callback)
     # rospy.sleep(1)
-    # trans = np.array([LfD.pose.position.x, LfD.pose.position.y, LfD.pose.position.z])
-    # rot = np.quaternion(LfD.pose.orientation.w, LfD.pose.orientation.x, LfD.pose.orientation.y, LfD.pose.orientation.z)
+    # trans = np.array([lfd.pose.position.x, lfd.pose.position.y, lfd.pose.position.z])
+    # rot = np.quaternion(lfd.pose.orientation.w, lfd.pose.orientation.x, lfd.pose.orientation.y, lfd.pose.orientation.z)
     # print(rot)
     # if sys.argv[-2]=='p':
-    #     LfD.point_quat_to_goal(trans, rot)
+    #     lfd.point_quat_to_goal(trans, rot)
 
 
 
@@ -553,24 +590,26 @@ if __name__ == '__main__':
 
 #     start = PoseStamped()
 # #
-#     start.pose.position.x = LfD.recorded_traj[0][0]
-#     start.pose.position.y = LfD.recorded_traj[1][0]
-#     start.pose.position.z = LfD.recorded_traj[2][0]
+#     start.pose.position.x = lfd.recorded_traj[0][0]
+#     start.pose.position.y = lfd.recorded_traj[1][0]
+#     start.pose.position.z = lfd.recorded_traj[2][0]
 
-#     start.pose.orientation.w = LfD.recorded_ori[0][0]
-#     start.pose.orientation.x = LfD.recorded_ori[1][0]
-#     start.pose.orientation.y = LfD.recorded_ori[2][0]
-#     start.pose.orientation.z = LfD.recorded_ori[3][0]
-#     LfD.go_to_pose(start)
+#     start.pose.orientation.w = lfd.recorded_ori[0][0]
+#     start.pose.orientation.x = lfd.recorded_ori[1][0]
+#     start.pose.orientation.y = lfd.recorded_ori[2][0]
+#     start.pose.orientation.z = lfd.recorded_ori[3][0]
+#     lfd.go_to_pose(start)
 
 
 #%%
+
+    # LfD.transform_trajectory()
     LfD.execute()
 
 
     # if len(sys.argv)<3:
-    print('Save new changes')
-    LfD.save(sys.argv[-1])
+    # print('Save new changes')
+    # LfD.save(sys.argv[-1])
 
 
     # goal = PoseStamped()
@@ -587,4 +626,4 @@ if __name__ == '__main__':
     # goal.pose.orientation.x = 0.0
     # goal.pose.orientation.y = 1.0
     # goal.pose.orientation.z = 0.0
-    # LfD.go_to_pose(goal)
+    # lfd.go_to_pose(goal)
