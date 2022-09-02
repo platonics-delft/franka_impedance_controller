@@ -297,20 +297,20 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   // if (q(6)>2.88)      { tau_joint_limit(6)=-5; } 
   // if (q(6)<-2.88)     { tau_joint_limit(6)=+5; }
   
-  if (q(0)>2.85)      { tau_joint_limit(0)=-2*(std::exp((q(0)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(0)<-2.85)     { tau_joint_limit(0)=+2*(std::exp((-q(0)-2.85)/(2.8973-2.85))-1); } //2.8973; 
-  if (q(1)>1.7)       { tau_joint_limit(1)=-2*(std::exp((q(1)-1.7)/(1.7628-1.7))-1); } //1.7628
-  if (q(1)<-1.7)      { tau_joint_limit(1)=+2*(std::exp((-q(1)-1.7)/(1.7628-1.7))-1); }//1.7628
-  if (q(2)>2.85)      { tau_joint_limit(2)=-2*(std::exp((q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(2)<-2.85)     { tau_joint_limit(2)=+2*(std::exp((-q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(3)>-0.1)      { tau_joint_limit(3)=-2*(std::exp((q(3)+0.1)/(0.1-0.0698))-1); } //-0.0698
-  if (q(3)<-3.0)      { tau_joint_limit(3)=2*(std::exp((-q(3)-3.0)/(3.0718-3.00))-1); } //-3.0718
-  if (q(4)>2.85)      { tau_joint_limit(4)=-2*(std::exp((q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(4)<-2.85)     { tau_joint_limit(4)=+2*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(5)>3.7)       { tau_joint_limit(5)=-2*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
-  if (q(5)<0.05)      { tau_joint_limit(5)=2*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
-  if (q(6)>2.7)      { tau_joint_limit(6)=-2*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
-  if (q(6)<-2.7)     { tau_joint_limit(6)=+2*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
+  if (q(0)>2.85)      { tau_joint_limit(0)=-4*(std::exp((q(0)-2.85)/(2.8973-2.85))-1); } //2.8973
+  if (q(0)<-2.85)     { tau_joint_limit(0)=+4*(std::exp((-q(0)-2.85)/(2.8973-2.85))-1); } //2.8973; 
+  if (q(1)>1.7)       { tau_joint_limit(1)=-4*(std::exp((q(1)-1.7)/(1.7628-1.7))-1); } //1.7628
+  if (q(1)<-1.7)      { tau_joint_limit(1)=+4*(std::exp((-q(1)-1.7)/(1.7628-1.7))-1); }//1.7628
+  if (q(2)>2.85)      { tau_joint_limit(2)=-4*(std::exp((q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
+  if (q(2)<-2.85)     { tau_joint_limit(2)=+4*(std::exp((-q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
+  if (q(3)>-0.1)      { tau_joint_limit(3)=-4*(std::exp((q(3)+0.1)/(0.1-0.0698))-1); } //-0.0698
+  if (q(3)<-3.0)      { tau_joint_limit(3)=4*(std::exp((-q(3)-3.0)/(3.0718-3.00))-1); } //-3.0718
+  if (q(4)>2.85)      { tau_joint_limit(4)=-4*(std::exp((q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
+  if (q(4)<-2.85)     { tau_joint_limit(4)=+4*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
+  if (q(5)>3.7)       { tau_joint_limit(5)=-4*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
+  if (q(5)<0.05)      { tau_joint_limit(5)=4*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
+  if (q(6)>2.7)      { tau_joint_limit(6)=-5*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
+  if (q(6)<-2.7)     { tau_joint_limit(6)=+5*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
 
 
 
@@ -326,10 +326,10 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   if (q(4)<-2.85)     { tau_joint_limit_ns(4)=+5*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
   if (q(5)>3.7)       { tau_joint_limit_ns(5)=-5*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
   if (q(5)<0.05)      { tau_joint_limit_ns(5)=5*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
-  if (q(6)>2.7)      { tau_joint_limit_ns(6)=-5*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
-  if (q(6)<-2.7)     { tau_joint_limit_ns(6)=+5*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
+  if (q(6)>2.7)      { tau_joint_limit_ns(6)=-10*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
+  if (q(6)<-2.7)     { tau_joint_limit_ns(6)=+10*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
   // Desired torque
-   tau_joint_limit_ns_act <<10* (Eigen::MatrixXd::Identity(7, 7) -
+   tau_joint_limit_ns_act <<5* (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian_const.transpose() * jacobian_const_transpose_pinv) * tau_joint_limit_ns ;
   tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_joint_limit_ns_act;
 //  ROS_INFO_STREAM(tau_joint_limit_ns_act);
