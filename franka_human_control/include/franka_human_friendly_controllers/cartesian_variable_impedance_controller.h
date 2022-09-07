@@ -49,6 +49,8 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
   std::vector<hardware_interface::JointHandle> joint_handles_;
 
   double nullspace_stiffness_{0.0};
+  double nullspace_stiffness_lim{0.0};
+  double nullspace_damping_{0.0};
   double nullspace_stiffness_target_{0.0};
   double dt{0.001};
   double time_start;
@@ -59,6 +61,7 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
   Eigen::Matrix<double, 6, 6> cartesian_stiffness_;
   Eigen::Matrix<double, 6, 6> cartesian_damping_;
   Eigen::Matrix<double, 7, 1> q_d_nullspace_;
+  Eigen::Matrix<double, 7, 1> q_d_nullspace_lim;
   Eigen::Matrix<double, 6, 6> cartesian_stiffness_target_;
   Eigen::Matrix<double, 6, 6> cartesian_damping_target_;
   Eigen::Matrix<double, 6, 1> force_torque;

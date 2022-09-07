@@ -256,46 +256,82 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   // compute "orientation error"
   error.tail(3) << error_quaternion_angle_axis.axis() * error_quaternion_angle_axis.angle();
 
+  error[0]=std::max(std::min(error[0],0.005),-0.005);
+  error[1]=std::max(std::min(error[1],0.005),-0.005);
+  error[2]=std::max(std::min(error[2],0.005),-0.005);
+  error[3]=std::max(std::min(error[3],2.0),-2.0);
+  error[4]=std::max(std::min(error[4],2.0),-2.0);
+  error[5]=std::max(std::min(error[5],2.0),-2.0);
   // compute control
   // allocate variables
-  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7), tau_joint_limit(7), tau_joint_limit_ns(7), tau_joint_limit_ns_act(7);
+  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_joint_limit_ns(7), tau_joint_limit_ns_act(7), tau_nullspace_lim(7);
 
   // pseudoinverse for nullspace handling
   // kinematic pseuoinverse
 
   Null_mat=(Eigen::MatrixXd::Identity(7, 7) -jacobian.transpose() * jacobian_transpose_pinv);
   null_vect.setZero();
-  null_vect(0)=std::max(std::min((q_d_nullspace_(0) - q(0)),0.3),-0.3);
-  null_vect(1)=std::max(std::min((q_d_nullspace_(1) - q(1)),0.3),-0.3);
-  null_vect(2)=std::max(std::min((q_d_nullspace_(2) - q(2)),0.3),-0.3);
-  null_vect(3)=std::max(std::min((q_d_nullspace_(3) - q(3)),0.3),-0.3);
-  null_vect(4)=std::max(std::min((q_d_nullspace_(4) - q(4)),0.3),-0.3);
-  null_vect(5)=std::max(std::min((q_d_nullspace_(5) - q(5)),0.3),-0.3);
-  null_vect(6)=std::max(std::min((q_d_nullspace_(6) - q(6)),0.3),-0.3);
+  null_vect_lim.setZero();
+  q_d_nullspace_lim(0)=q(0);
+  q_d_nullspace_lim(1)=q(1);
+  q_d_nullspace_lim(2)=q(2);
+  q_d_nullspace_lim(3)=q(3);
+  q_d_nullspace_lim(4)=q(4);
+  q_d_nullspace_lim(5)=q(5);
+  q_d_nullspace_lim(6)=q(6);
+
+  nullspace_stiffness_lim=200.0;
+  if (q(0)>2.85)      {  q_d_nullspace_lim(0)=2.85;} 
+  if (q(0)<-2.85)     {  q_d_nullspace_lim(0)=-2.85;}  
+  if (q(1)>1.7)       {  q_d_nullspace_lim(1)=1.7;} 
+  if (q(1)<-1.7)      {  q_d_nullspace_lim(1)=-1.7;}
+  if (q(2)>2.85)      {  q_d_nullspace_lim(2)=2.85;} 
+  if (q(2)<-2.85)     {  q_d_nullspace_lim(2)= -2.85;} 
+  if (q(3)>-0.1)      {  q_d_nullspace_lim(3)= -0.1;} 
+  if (q(3)<-3.0)      {  q_d_nullspace_lim(3)= -3.0;} 
+  if (q(4)>2.85)      {  q_d_nullspace_lim(4)= 2.85;} 
+  if (q(4)<-2.85)     {  q_d_nullspace_lim(4)= -2.85;} 
+  if (q(5)>3.7)       {  q_d_nullspace_lim(5)= 3.7;} 
+  if (q(5)<0.05)      {  q_d_nullspace_lim(5)= 0.05;} 
+  if (q(6)>2.5)       {  q_d_nullspace_lim(6)= 2.5;}  
+  if (q(6)<-2.5)      {  q_d_nullspace_lim(6)=-2.5;} 
+  
+  null_vect_lim(0)=std::max(std::min((q_d_nullspace_lim(0) - q(0)),0.3),-0.3);
+  null_vect_lim(1)=std::max(std::min((q_d_nullspace_lim(1) - q(1)),0.3),-0.3);
+  null_vect_lim(2)=std::max(std::min((q_d_nullspace_lim(2) - q(2)),0.3),-0.3);
+  null_vect_lim(3)=std::max(std::min((q_d_nullspace_lim(3) - q(3)),0.3),-0.3);
+  null_vect_lim(4)=std::max(std::min((q_d_nullspace_lim(4) - q(4)),0.3),-0.3);
+  null_vect_lim(5)=std::max(std::min((q_d_nullspace_lim(5) - q(5)),0.3),-0.3);
+  null_vect_lim(6)=std::max(std::min((q_d_nullspace_lim(6) - q(6)),0.3),-0.3);
+  
   // Cartesian PD control with damping ratio = 1
   tau_task << jacobian.transpose() *
                   (-cartesian_stiffness_ * error -  cartesian_damping_ * (jacobian * dq)); //double critic damping
-  // nullspace PD control with damping ratio = 1
 
-  if (q(0)>2.85)      { nullspace_stiffness_=10; } 
-  if (q(0)<-2.85)     { nullspace_stiffness_=10; }  
-  if (q(1)>1.7)       { nullspace_stiffness_=10; } 
-  if (q(1)<-1.7)      { nullspace_stiffness_=10; }
-  if (q(2)>2.85)      { nullspace_stiffness_=10; } 
-  if (q(2)<-2.85)     { nullspace_stiffness_=10; } 
-  if (q(3)>-0.1)      { nullspace_stiffness_=10; } 
-  if (q(3)<-3.0)      { nullspace_stiffness_=10; } 
-  if (q(4)>2.85)      { nullspace_stiffness_=10; } 
-  if (q(4)<-2.85)     { nullspace_stiffness_=10; } 
-  if (q(5)>3.7)       { nullspace_stiffness_=10; } 
-  if (q(5)<0.05)      { nullspace_stiffness_=10; } 
-  if (q(6)>2.7)       { nullspace_stiffness_=10; }  
-  if (q(6)<-2.7)      { nullspace_stiffness_=10; } 
+  //if (q(0)>2.85)      {  tau_task(0)=0.0;} 
+  //if (q(0)<-2.85)     {  tau_task(0)=0.0;}  
+  //if (q(1)>1.7)       {  tau_task(1)=0.0;} 
+  //if (q(1)<-1.7)      {  tau_task(1)=0.0;}
+  //if (q(2)>2.85)      {  tau_task(2)=0.0;} 
+  //if (q(2)<-2.85)     {  tau_task(2)= 0.0;} 
+  //if (q(3)>-0.1)      {  tau_task(3)= 0.0;} 
+  //if (q(3)<-3.0)      {  tau_task(3)= 0.0;} 
+  //if (q(4)>2.85)      {  tau_task(4)= 0.0;} 
+  //if (q(4)<-2.85)     {  tau_task(4)= 0.0;} 
+  //if (q(5)>3.7)       {  tau_task(5)= 0.0;} 
+  //if (q(5)<0.05)      {  tau_task(5)= 0.0;} 
+  //if (q(6)>2.5)       {  tau_task(6)= 0.0;}  
+  //if (q(6)<-2.5)      {  tau_task(6)= 0.0;} 
 
   tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian.transpose() * jacobian_transpose_pinv) *
                        (nullspace_stiffness_ * null_vect -
-                        1*(2.0 * sqrt(nullspace_stiffness_)) * dq); //double critic damping
+                        2*(2.0 * sqrt(nullspace_stiffness_)) * dq); //double critic damping
+                        
+  tau_nullspace_lim << (Eigen::MatrixXd::Identity(7, 7) -
+                    jacobian.transpose() * jacobian_transpose_pinv) *
+                       (nullspace_stiffness_lim * null_vect_lim -
+                        1*(2.0 * sqrt(nullspace_stiffness_lim)) * dq); //double critic damping                      
   tau_joint_limit.setZero();
   tau_joint_limit_ns.setZero();
   // if (q(0)>2.88)     { tau_joint_limit(0)=-10; }
@@ -313,22 +349,28 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   // if (q(6)>2.88)      { tau_joint_limit(6)=-5; } 
   // if (q(6)<-2.88)     { tau_joint_limit(6)=+5; }
   
-  if (q(0)>2.85)      { tau_joint_limit(0)=-4*(std::exp((q(0)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(0)<-2.85)     { tau_joint_limit(0)=+4*(std::exp((-q(0)-2.85)/(2.8973-2.85))-1); } //2.8973; 
-  if (q(1)>1.7)       { tau_joint_limit(1)=-4*(std::exp((q(1)-1.7)/(1.7628-1.7))-1); } //1.7628
-  if (q(1)<-1.7)      { tau_joint_limit(1)=+4*(std::exp((-q(1)-1.7)/(1.7628-1.7))-1); }//1.7628
-  if (q(2)>2.85)      { tau_joint_limit(2)=-4*(std::exp((q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(2)<-2.85)     { tau_joint_limit(2)=+4*(std::exp((-q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(3)>-0.1)      { tau_joint_limit(3)=-4*(std::exp((q(3)+0.1)/(0.1-0.0698))-1); } //-0.0698
-  if (q(3)<-3.0)      { tau_joint_limit(3)=4*(std::exp((-q(3)-3.0)/(3.0718-3.00))-1); } //-3.0718
-  if (q(4)>2.85)      { tau_joint_limit(4)=-4*(std::exp((q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(4)<-2.85)     { tau_joint_limit(4)=+4*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(5)>3.7)       { tau_joint_limit(5)=-4*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
-  if (q(5)<0.05)      { tau_joint_limit(5)=4*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
-  if (q(6)>2.7)      { tau_joint_limit(6)=-2*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
-  if (q(6)<-2.7)     { tau_joint_limit(6)=+2*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
+ if (q(0)>2.87)      { tau_joint_limit(0)=-4*(std::exp((q(0)-2.85)/(2.8973-2.85))-1); } //2.8973
+ if (q(0)<-2.87)     { tau_joint_limit(0)=+4*(std::exp((-q(0)-2.85)/(2.8973-2.85))-1); } //2.8973; 
+ if (q(1)>1.74)       { tau_joint_limit(1)=-4*(std::exp((q(1)-1.7)/(1.7628-1.7))-1); } //1.7628
+ if (q(1)<-1.74)      { tau_joint_limit(1)=+4*(std::exp((-q(1)-1.7)/(1.7628-1.7))-1); }//1.7628
+ if (q(2)>2.87)      { tau_joint_limit(2)=-4*(std::exp((q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
+ if (q(2)<-2.87)     { tau_joint_limit(2)=+4*(std::exp((-q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
+ if (q(3)>-0.08)      { tau_joint_limit(3)=-4*(std::exp((q(3)+0.1)/(0.1-0.0698))-1); } //-0.0698
+ if (q(3)<-3.05)      { tau_joint_limit(3)=4*(std::exp((-q(3)-3.0)/(3.0718-3.00))-1); } //-3.0718
+ if (q(4)>2.87)      { tau_joint_limit(4)=-4*(std::exp((q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
+ if (q(4)<-2.87)     { tau_joint_limit(4)=+4*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
+ if (q(5)>3.73)       { tau_joint_limit(5)=-4*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
+ if (q(5)<0)         { tau_joint_limit(5)=4*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
+ if (q(6)>2.85)      { tau_joint_limit(6)=-2*(std::exp((q(6)-2.85)/(2.8973-2.85))-1); }  //2.8973
+ if (q(6)<-2.85)     { tau_joint_limit(6)=+2*(std::exp((-q(6)-2.85)/(2.8973-2.85))-1); } //2.8973
 
-
+ tau_joint_limit(0)=std::max(std::min(tau_joint_limit(0), 5.0), -5.0);
+  tau_joint_limit(1)=std::max(std::min(tau_joint_limit(1), 5.0), -5.0);
+  tau_joint_limit(2)=std::max(std::min(tau_joint_limit(2), 5.0), -5.0);
+   tau_joint_limit(3)=std::max(std::min(tau_joint_limit(3), 5.0), -5.0);
+    tau_joint_limit(4)=std::max(std::min(tau_joint_limit(4), 5.0), -5.0);
+     tau_joint_limit(5)=std::max(std::min(tau_joint_limit(5), 5.0), -5.0);
+      tau_joint_limit(6)=std::max(std::min(tau_joint_limit(6), 2.0), -2.0);
 
   if (q(0)>2.85)      { tau_joint_limit_ns(0)=-5*(std::exp((q(0)-2.85)/(2.8973-2.85))-1); } //2.8973
   if (q(0)<-2.85)     { tau_joint_limit_ns(0)=+5*(std::exp((-q(0)-2.85)/(2.8973-2.85))-1); } //2.8973; 
@@ -342,12 +384,23 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   if (q(4)<-2.85)     { tau_joint_limit_ns(4)=+5*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
   if (q(5)>3.7)       { tau_joint_limit_ns(5)=-5*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
   if (q(5)<0.05)      { tau_joint_limit_ns(5)=5*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
-  if (q(6)>2.7)      { tau_joint_limit_ns(6)=-5*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
-  if (q(6)<-2.7)     { tau_joint_limit_ns(6)=+5*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
+  if (q(6)>2.5)      { tau_joint_limit_ns(6)=-5*(std::exp((q(6)-2.5)/(2.8973-2.5))-1); }  //2.8973
+  if (q(6)<-2.5)     { tau_joint_limit_ns(6)=+5*(std::exp((-q(6)-2.5)/(2.8973-2.5))-1); } //2.8973
+  
+   tau_joint_limit_ns(0)=std::max(std::min(tau_joint_limit_ns(0), 5.0), -5.0);
+  tau_joint_limit_ns(1)=std::max(std::min(tau_joint_limit_ns(1), 5.0), -5.0);
+   tau_joint_limit_ns(2)=std::max(std::min(tau_joint_limit_ns(2), 5.0), -5.0);
+    tau_joint_limit_ns(3)=std::max(std::min(tau_joint_limit_ns(3), 5.0), -5.0);
+     tau_joint_limit_ns(4)=std::max(std::min(tau_joint_limit_ns(4), 5.0), -5.0);
+      tau_joint_limit_ns(5)=std::max(std::min(tau_joint_limit_ns(5), 5.0), -5.0);
+       tau_joint_limit_ns(6)=std::max(std::min(tau_joint_limit_ns(6), 5.0), -5.0);
+
   // Desired torque
    tau_joint_limit_ns_act <<5* (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian_const.transpose() * jacobian_const_transpose_pinv) * tau_joint_limit_ns ;
-  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit;//+tau_joint_limit_ns_act;
+                    
+                    
+  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim; //+tau_joint_limit_ns_act;
 //  ROS_INFO_STREAM(tau_joint_limit_ns_act);
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
@@ -404,7 +457,7 @@ void CartesianVariableImpedanceController::equilibriumStiffnessCallback(
 
   cartesian_damping_target_(3,3)=2.0 * sqrt(cartesian_stiffness_target_(3,3));
   cartesian_damping_target_(4,4)=2.0 * sqrt(cartesian_stiffness_target_(4,4));
-  cartesian_damping_target_(5,5)=2.0 * sqrt(cartesian_stiffness_target_(5,5));
+  cartesian_damping_target_(5,5)=6.0 * sqrt(cartesian_stiffness_target_(5,5));
 
   nullspace_stiffness_target_= std::max(std::min(stiff_[6], float(50.0)), float(0.0));
 
@@ -474,9 +527,9 @@ void CartesianVariableImpedanceController::complianceParamCallback(
   cartesian_damping_target_(0,0)=2.0 * sqrt(config.translational_stiffness_X);
   cartesian_damping_target_(1,1)=2.0 * sqrt(config.translational_stiffness_Y);
   cartesian_damping_target_(2,2)=2.0 * sqrt(config.translational_stiffness_Z);
-  cartesian_damping_target_(3,3)=2.0 * sqrt(config.rotational_stiffness_X);
-  cartesian_damping_target_(4,4)=2.0 * sqrt(config.rotational_stiffness_Y);
-  cartesian_damping_target_(5,5)=2.0 * sqrt(config.rotational_stiffness_Z);
+  cartesian_damping_target_(3,3)=1.0 * sqrt(config.rotational_stiffness_X);
+  cartesian_damping_target_(4,4)=1.0 * sqrt(config.rotational_stiffness_Y);
+  cartesian_damping_target_(5,5)=1.0 * sqrt(config.rotational_stiffness_Z);
   nullspace_stiffness_target_ = config.nullspace_stiffness;
 }
 
