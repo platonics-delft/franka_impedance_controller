@@ -276,6 +276,22 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   tau_task << jacobian.transpose() *
                   (-cartesian_stiffness_ * error -  cartesian_damping_ * (jacobian * dq)); //double critic damping
   // nullspace PD control with damping ratio = 1
+
+  if (q(0)>2.85)      { nullspace_stiffness_=10; } 
+  if (q(0)<-2.85)     { nullspace_stiffness_=10; }  
+  if (q(1)>1.7)       { nullspace_stiffness_=10; } 
+  if (q(1)<-1.7)      { nullspace_stiffness_=10; }
+  if (q(2)>2.85)      { nullspace_stiffness_=10; } 
+  if (q(2)<-2.85)     { nullspace_stiffness_=10; } 
+  if (q(3)>-0.1)      { nullspace_stiffness_=10; } 
+  if (q(3)<-3.0)      { nullspace_stiffness_=10; } 
+  if (q(4)>2.85)      { nullspace_stiffness_=10; } 
+  if (q(4)<-2.85)     { nullspace_stiffness_=10; } 
+  if (q(5)>3.7)       { nullspace_stiffness_=10; } 
+  if (q(5)<0.05)      { nullspace_stiffness_=10; } 
+  if (q(6)>2.7)       { nullspace_stiffness_=10; }  
+  if (q(6)<-2.7)      { nullspace_stiffness_=10; } 
+
   tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian.transpose() * jacobian_transpose_pinv) *
                        (nullspace_stiffness_ * null_vect -
@@ -328,10 +344,12 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   if (q(5)<0.05)      { tau_joint_limit_ns(5)=5*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
   if (q(6)>2.7)      { tau_joint_limit_ns(6)=-10*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
   if (q(6)<-2.7)     { tau_joint_limit_ns(6)=+10*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
+
+
   // Desired torque
    tau_joint_limit_ns_act <<5* (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian_const.transpose() * jacobian_const_transpose_pinv) * tau_joint_limit_ns ;
-  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_joint_limit_ns_act;
+  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit;//+tau_joint_limit_ns_act;
 //  ROS_INFO_STREAM(tau_joint_limit_ns_act);
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
