@@ -37,8 +37,8 @@ int main(int argc, char **argv)
   ros::Publisher pub_grasp = n.advertise<franka_gripper::GraspActionGoal>("/franka_gripper/grasp/goal", 0);
   franka_gripper::MoveActionGoal msg_move;
   franka_gripper::GraspActionGoal msg_grasp;
-  msg_move.goal.speed = 0.1;
-  msg_grasp.goal.speed = 0.1;
+  msg_move.goal.speed = 0.05;
+  msg_grasp.goal.speed = 0.05;
 
   //franka_gripper::StopActionGoal msg_stop;
   while (ros::ok())
