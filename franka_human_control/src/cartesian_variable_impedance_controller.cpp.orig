@@ -342,8 +342,15 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   if (q(4)<-2.85)     { tau_joint_limit_ns(4)=+5*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
   if (q(5)>3.7)       { tau_joint_limit_ns(5)=-5*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
   if (q(5)<0.05)      { tau_joint_limit_ns(5)=5*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
+<<<<<<< HEAD
   if (q(6)>2.7)      { tau_joint_limit_ns(6)=-5*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
   if (q(6)<-2.7)     { tau_joint_limit_ns(6)=+5*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
+=======
+  if (q(6)>2.7)      { tau_joint_limit_ns(6)=-10*(std::exp((q(6)-2.7)/(2.8973-2.7))-1); }  //2.8973
+  if (q(6)<-2.7)     { tau_joint_limit_ns(6)=+10*(std::exp((-q(6)-2.7)/(2.8973-2.7))-1); } //2.8973
+
+
+>>>>>>> c286dcccd55fba98d696eee555d23305de674454
   // Desired torque
    tau_joint_limit_ns_act <<5* (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian_const.transpose() * jacobian_const_transpose_pinv) * tau_joint_limit_ns ;
