@@ -1,5 +1,8 @@
 // Copyright (c) 2017 Franka Emika GmbH
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
+
+//This code has been modified by Giovanni Franzese. For questions: g.franzese@tudelft.nl
+
 #include <franka_human_friendly_controllers/cartesian_variable_impedance_controller.h>
 
 #include <cmath>
@@ -169,7 +172,8 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   Eigen::Map<Eigen::Matrix<double, 7, 1> > dq(robot_state.dq.data());
   double time_=ros::Time::now().toSec();
 
-    // this line allows to have the nullspace active in the degree of freedom that do not have stiffness anymore
+    // this line allows to have the nullspace active in the degree of freedom that do not have stiffness anymore. 
+    //So if you pull the cartesian stiffness down, the control goes from cartesian plus nullspace control to pure joint control
   for(int i=0; i<6; i++){
      if (cartesian_stiffness_(i,i)==0){
         for(int j=0; j<7; j++){ jacobian(i, j) = 0; } }}
@@ -196,29 +200,6 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   tau_f(5) =  FI_16/(1+exp(-FI_26*(dq(5)+FI_36))) - TAU_F_CONST_6;
   tau_f(6) =  FI_17/(1+exp(-FI_27*(dq(6)+FI_37))) - TAU_F_CONST_7;
 
-
-//Sliding window filter
- /*
-  force_torque=force_torque-jacobian_transpose_pinv*(tau_ext-tau_f);
-  // publish force, torque
-  filter_step=filter_step+1;
-  filter_step_=10; // this will make the force to be published at 1000/filter_step_ frequency
-  alpha=1;
-  if (filter_step==filter_step_){
-    geometry_msgs::WrenchStamped force_torque_msg;
-    force_torque_msg.wrench.force.x=force_torque_old[0]*(1-alpha)+force_torque[0]*alpha/(filter_step_);
-    force_torque_msg.wrench.force.y=force_torque_old[1]*(1-alpha)+ force_torque[1]*alpha/(filter_step_);
-    force_torque_msg.wrench.force.z=force_torque_old[2]*(1-alpha)+force_torque[2]*alpha/(filter_step_);
-    force_torque_msg.wrench.torque.x=force_torque_old[3]*(1-alpha)+force_torque[3]*alpha/(filter_step_);
-    force_torque_msg.wrench.torque.y=force_torque_old[4]*(1-alpha)+force_torque[4]*alpha/(filter_step_);
-    force_torque_msg.wrench.torque.z=force_torque_old[5]*(1-alpha)+force_torque[5]*alpha/(filter_step_);
-    pub_force_torque_.publish(force_torque_msg);
-    force_torque_old=force_torque/(filter_step_); //save the previous average 
-    force_torque.setZero();
-    //ddq.setZero();
-    filter_step=0;
-    }
-    */
    //Low pass filter for the external force estimation
   float iCutOffFrequency=10.0;
   force_torque+=(-jacobian_transpose_pinv*(tau_ext-tau_f)-force_torque)*(1-exp(-0.001 * 2.0 * M_PI * iCutOffFrequency));
@@ -257,15 +238,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   // compute "orientation error"
   error.tail(3) << error_quaternion_angle_axis.axis() * error_quaternion_angle_axis.angle();
 
-  // error[0]=std::max(std::min(error[0],0.01),-0.01);
-  // error[1]=std::max(std::min(error[1],0.01),-0.01);
-  // error[2]=std::max(std::min(error[2],0.01),-0.01);
-  // error[3]=std::max(std::min(error[3],2.0),-2.0);
-  // error[4]=std::max(std::min(error[4],2.0),-2.0);
-  // error[5]=std::max(std::min(error[5],2.0),-2.0);
-  // compute control
-  // allocate variables
-  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_joint_limit_ns(7), tau_joint_limit_ns_act(7), tau_nullspace_lim(7);
+  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_nullspace_lim(7);
 
   // pseudoinverse for nullspace handling
   // kinematic pseuoinverse
@@ -329,20 +302,6 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   tau_task << jacobian.transpose() *
                   (cartesian_force -  cartesian_damping_ * (jacobian * dq)); //double critic damping
 
-  //if (q(0)>2.85)      {  tau_task(0)=0.0;} 
-  //if (q(0)<-2.85)     {  tau_task(0)=0.0;}  
-  //if (q(1)>1.7)       {  tau_task(1)=0.0;} 
-  //if (q(1)<-1.7)      {  tau_task(1)=0.0;}
-  //if (q(2)>2.85)      {  tau_task(2)=0.0;} 
-  //if (q(2)<-2.85)     {  tau_task(2)= 0.0;} 
-  //if (q(3)>-0.1)      {  tau_task(3)= 0.0;} 
-  //if (q(3)<-3.0)      {  tau_task(3)= 0.0;} 
-  //if (q(4)>2.85)      {  tau_task(4)= 0.0;} 
-  //if (q(4)<-2.85)     {  tau_task(4)= 0.0;} 
-  //if (q(5)>3.7)       {  tau_task(5)= 0.0;} 
-  //if (q(5)<0.05)      {  tau_task(5)= 0.0;} 
-  //if (q(6)>2.5)       {  tau_task(6)= 0.0;}  
-  //if (q(6)<-2.5)      {  tau_task(6)= 0.0;} 
 
   tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian.transpose() * jacobian_transpose_pinv) *
@@ -352,23 +311,8 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   tau_nullspace_lim << (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian.transpose() * jacobian_transpose_pinv) *
                        (nullspace_stiffness_lim * null_vect_lim -
-                        1*(2.0 * sqrt(nullspace_stiffness_lim)) * dq); //double critic damping                      
+                        (2.0 * sqrt(nullspace_stiffness_lim)) * dq); //double critic damping                      
   tau_joint_limit.setZero();
-  tau_joint_limit_ns.setZero();
-  // if (q(0)>2.88)     { tau_joint_limit(0)=-10; }
-  // if (q(0)<-2.88)    { tau_joint_limit(0)=+10; }
-  // if (q(1)>1.75)      { tau_joint_limit(1)=-10; }
-  // if (q(1)<-1.75)     { tau_joint_limit(1)=+10; }
-  // if (q(2)>2.88)     { tau_joint_limit(2)=-10; }
-  // if (q(2)<-2.88)    { tau_joint_limit(2)=+10; }
-  // if (q(3)>-0.08)     { tau_joint_limit(3)=-10; }
-  // if (q(3)<-3.06)     { tau_joint_limit(3)=+10; }
-  // if (q(4)>2.88)     { tau_joint_limit(4)=-10; }
-  // if (q(4)<-2.88)    { tau_joint_limit(4)=+10; }
-  // if (q(5)>3.74)      { tau_joint_limit(5)=-10; }
-  // if (q(5)<0.0)     { tau_joint_limit(5)=+10; }//-0.0175
-  // if (q(6)>2.88)      { tau_joint_limit(6)=-5; } 
-  // if (q(6)<-2.88)     { tau_joint_limit(6)=+5; }
   
  if (q(0)>2.87)      { tau_joint_limit(0)=-4*(std::exp((q(0)-2.85)/(2.8973-2.85))-1); } //2.8973
  if (q(0)<-2.87)     { tau_joint_limit(0)=+4*(std::exp((-q(0)-2.85)/(2.8973-2.85))-1); } //2.8973; 
@@ -393,36 +337,9 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
      tau_joint_limit(5)=std::max(std::min(tau_joint_limit(5), 5.0), -5.0);
       tau_joint_limit(6)=std::max(std::min(tau_joint_limit(6), 2.0), -2.0);
 
-  if (q(0)>2.85)      { tau_joint_limit_ns(0)=-5*(std::exp((q(0)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(0)<-2.85)     { tau_joint_limit_ns(0)=+5*(std::exp((-q(0)-2.85)/(2.8973-2.85))-1); } //2.8973; 
-  if (q(1)>1.7)       { tau_joint_limit_ns(1)=-5*(std::exp((q(1)-1.7)/(1.7628-1.7))-1); } //1.7628
-  if (q(1)<-1.7)      { tau_joint_limit_ns(1)=+5*(std::exp((-q(1)-1.7)/(1.7628-1.7))-1); }//1.7628
-  if (q(2)>2.85)      { tau_joint_limit_ns(2)=-5*(std::exp((q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(2)<-2.85)     { tau_joint_limit_ns(2)=+5*(std::exp((-q(2)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(3)>-0.1)      { tau_joint_limit_ns(3)=-5*(std::exp((q(3)+0.1)/(0.1-0.0698))-1); } //-0.0698
-  if (q(3)<-3.0)      { tau_joint_limit_ns(3)=5*(std::exp((-q(3)-3.0)/(3.0718-3.00))-1); } //-3.0718
-  if (q(4)>2.85)      { tau_joint_limit_ns(4)=-5*(std::exp((q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(4)<-2.85)     { tau_joint_limit_ns(4)=+5*(std::exp((-q(4)-2.85)/(2.8973-2.85))-1); } //2.8973
-  if (q(5)>3.7)       { tau_joint_limit_ns(5)=-5*(std::exp((q(5)-3.7)/(3.7525-3.7))-1); } //3.7525
-  if (q(5)<0.05)      { tau_joint_limit_ns(5)=5*(std::exp((std::abs(q(5)-0.05)/(0.05+0.0175)))-1); } //-0.0175
-  if (q(6)>2.5)      { tau_joint_limit_ns(6)=-5*(std::exp((q(6)-2.5)/(2.8973-2.5))-1); }  //2.8973
-  if (q(6)<-2.5)     { tau_joint_limit_ns(6)=+5*(std::exp((-q(6)-2.5)/(2.8973-2.5))-1); } //2.8973
-  
-   tau_joint_limit_ns(0)=std::max(std::min(tau_joint_limit_ns(0), 5.0), -5.0);
-  tau_joint_limit_ns(1)=std::max(std::min(tau_joint_limit_ns(1), 5.0), -5.0);
-   tau_joint_limit_ns(2)=std::max(std::min(tau_joint_limit_ns(2), 5.0), -5.0);
-    tau_joint_limit_ns(3)=std::max(std::min(tau_joint_limit_ns(3), 5.0), -5.0);
-     tau_joint_limit_ns(4)=std::max(std::min(tau_joint_limit_ns(4), 5.0), -5.0);
-      tau_joint_limit_ns(5)=std::max(std::min(tau_joint_limit_ns(5), 5.0), -5.0);
-       tau_joint_limit_ns(6)=std::max(std::min(tau_joint_limit_ns(6), 5.0), -5.0);
+                
+  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim;
 
-  // Desired torque
-   tau_joint_limit_ns_act <<5* (Eigen::MatrixXd::Identity(7, 7) -
-                    jacobian_const.transpose() * jacobian_const_transpose_pinv) * tau_joint_limit_ns ;
-                    
-                    
-  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim; //+tau_joint_limit_ns_act;
-//  ROS_INFO_STREAM(tau_joint_limit_ns_act);
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
   if (count_vibration<1000.0*duration_vibration){tau_d(6)=tau_d(6)+5.0*sin(100.0/1000.0*2.0*3.14*count_vibration);
