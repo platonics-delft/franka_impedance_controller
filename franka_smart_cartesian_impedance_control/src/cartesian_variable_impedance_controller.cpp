@@ -175,7 +175,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
     // this line allows to have the nullspace active in the degree of freedom that do not have stiffness anymore. 
     //So if you pull the cartesian stiffness down, the control goes from cartesian plus nullspace control to pure joint control
   for(int i=0; i<6; i++){
-     if (cartesian_stiffness_(i,i)==0){
+     if (cartesian_stiffness_target_(i,i)==0){
         for(int j=0; j<7; j++){ jacobian(i, j) = 0; } }}
 
   Eigen::Map<Eigen::Matrix<double, 7, 1> > tau_J_d(  // NOLINT (readability-identifier-naming)
@@ -238,8 +238,9 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   // compute "orientation error"
   error.tail(3) << error_quaternion_angle_axis.axis() * error_quaternion_angle_axis.angle();
 
-  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_nullspace_lim(7);
+  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_nullspace_lim(7), tau_damping(7);
 
+  tau_damping.setZero();
   // pseudoinverse for nullspace handling
   // kinematic pseuoinverse
 
@@ -303,6 +304,8 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
                   (cartesian_force -  cartesian_damping_ * (jacobian * dq)); //double critic damping
 
 
+  tau_damping << - jacobian_const.transpose()* cartesian_damping_constant_ * (jacobian_const * dq);
+  
   tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian.transpose() * jacobian_transpose_pinv) *
                        (nullspace_stiffness_ * null_vect -
@@ -338,7 +341,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
       tau_joint_limit(6)=std::max(std::min(tau_joint_limit(6), 2.0), -2.0);
 
                 
-  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim;
+  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim+ tau_damping;
 
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
@@ -353,6 +356,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
 
   cartesian_stiffness_ =cartesian_stiffness_+ 0.001*(cartesian_stiffness_target_-cartesian_stiffness_);
   cartesian_damping_ =cartesian_damping_+ 0.001*(cartesian_damping_target_-cartesian_damping_);
+  
   nullspace_stiffness_ = nullspace_stiffness_target_;
   Eigen::AngleAxisd aa_orientation_d(orientation_d_);
   orientation_d_ = Eigen::Quaterniond(aa_orientation_d);
@@ -468,6 +472,16 @@ void CartesianVariableImpedanceController::complianceParamCallback(
   cartesian_damping_target_(3,3)=1.0 * sqrt(config.rotational_stiffness_X);
   cartesian_damping_target_(4,4)=1.0 * sqrt(config.rotational_stiffness_Y);
   cartesian_damping_target_(5,5)=1.0 * sqrt(config.rotational_stiffness_Z);
+
+  for(int i=0; i<3; i++){
+    if (cartesian_stiffness_target_(i,i)==0){
+        cartesian_damping_constant_(i,i)=2.0 * sqrt(200);} 
+    else {cartesian_damping_constant_(i,i)=2.0 * sqrt(0);}    }
+  for(int i=3; i<6; i++){
+    if (cartesian_stiffness_target_(i,i)==0){
+        cartesian_damping_constant_(i,i)=2.0 * sqrt(2);}
+    else {cartesian_damping_constant_(i,i)=2.0 * sqrt(0);} }
+  // ROS_INFO_STREAM("cartesian_daming_target_" << cartesian_damping_constant_ );
   nullspace_stiffness_target_ = config.nullspace_stiffness;
 }
 

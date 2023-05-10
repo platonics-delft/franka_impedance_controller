@@ -64,6 +64,7 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
   Eigen::Matrix<double, 7, 1> q_d_nullspace_lim;
   Eigen::Matrix<double, 6, 6> cartesian_stiffness_target_;
   Eigen::Matrix<double, 6, 6> cartesian_damping_target_;
+  Eigen::Matrix<double, 6, 6> cartesian_damping_constant_;
   Eigen::Matrix<double, 6, 1> force_torque;
   Eigen::Matrix<double, 6, 1> force_torque_old;
   Eigen::Matrix<float, 7, 1> stiff_;
