@@ -3,17 +3,17 @@
 
 //This code has been modified by Giovanni Franzese. For questions: g.franzese@tudelft.nl
 
-#include <franka_human_friendly_controllers/cartesian_variable_impedance_controller.h>
+#include <franka_robothon_controllers/cartesian_variable_impedance_controller.h>
 
 #include <cmath>
 
 #include <controller_interface/controller_base.h>
-#include <franka_human_friendly_controllers/franka_model.h>
+#include <franka_robothon_controllers/franka_model.h>
 #include <franka/robot_state.h>
 #include <pluginlib/class_list_macros.h>
 #include <ros/ros.h>
-#include <franka_human_friendly_controllers/pseudo_inversion.h>
-namespace franka_human_friendly_controllers {
+#include <franka_robothon_controllers/pseudo_inversion.h>
+namespace franka_robothon_controllers {
 
 bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* robot_hw,
                                                ros::NodeHandle& node_handle) {
@@ -109,7 +109,7 @@ bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* rob
       ros::NodeHandle("dynamic_reconfigure_compliance_param_node");
 
   dynamic_server_compliance_param_.reset(
-      new dynamic_reconfigure::Server<franka_human_friendly_controllers::compliance_paramConfig>(
+      new dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>(
           dynamic_reconfigure_compliance_param_node_));
   dynamic_server_compliance_param_->setCallback(
       boost::bind(&CartesianVariableImpedanceController::complianceParamCallback, this, _1, _2));
@@ -456,7 +456,7 @@ void CartesianVariableImpedanceController::equilibriumStiffnessCallback(
 }
 
 void CartesianVariableImpedanceController::complianceParamCallback(
-    franka_human_friendly_controllers::compliance_paramConfig& config,
+    franka_robothon_controllers::compliance_paramConfig& config,
     uint32_t /*level*/) {
   cartesian_stiffness_target_.setIdentity();
   cartesian_stiffness_target_(0,0)=config.translational_stiffness_X;
@@ -513,7 +513,7 @@ void CartesianVariableImpedanceController::equilibriumVibrationCallback( const s
 }
 
 
-}  // namespace franka_human_friendly_controllers
+}  // namespace franka_robothon_controllers
 
-PLUGINLIB_EXPORT_CLASS(franka_human_friendly_controllers::CartesianVariableImpedanceController,
+PLUGINLIB_EXPORT_CLASS(franka_robothon_controllers::CartesianVariableImpedanceController,
                        controller_interface::ControllerBase)

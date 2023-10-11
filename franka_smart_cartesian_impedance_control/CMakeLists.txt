@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4)
-project(franka_human_friendly_controllers)
+project(franka_robothon_controllers)
 
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 14)
@@ -38,7 +38,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES franka_human_friendly_controllers
+  LIBRARIES franka_robothon_controllers
   CATKIN_DEPENDS
     controller_interface
     dynamic_reconfigure
@@ -56,11 +56,11 @@ catkin_package(
   DEPENDS Franka
 )
 
-add_library(franka_human_friendly_controllers
+add_library(franka_robothon_controllers
   src/cartesian_variable_impedance_controller.cpp
 )
 
-add_dependencies(franka_human_friendly_controllers
+add_dependencies(franka_robothon_controllers
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_generate_messages_cpp
@@ -68,62 +68,21 @@ add_dependencies(franka_human_friendly_controllers
   ${PROJECT_NAME}_gencfg
 )
 
-target_link_libraries(franka_human_friendly_controllers PUBLIC
+target_link_libraries(franka_robothon_controllers PUBLIC
   ${Franka_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
-target_include_directories(franka_human_friendly_controllers SYSTEM PUBLIC
+target_include_directories(franka_robothon_controllers SYSTEM PUBLIC
   ${Franka_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
-target_include_directories(franka_human_friendly_controllers PUBLIC
+target_include_directories(franka_robothon_controllers PUBLIC
   include
 )
-
-
-#add_executable(franka_gripper_online
-#  src/franka_gripper_online.cpp
-#)
-
-#add_dependencies(franka_gripper_online
-#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-#  ${catkin_EXPORTED_TARGETS}
-#  franka_gripper
-#)
-
-#target_link_libraries(franka_gripper_online
-#   ${catkin_LIBRARIES}
-#   franka_gripper
-#)
-
-#target_include_directories(franka_gripper_online SYSTEM PUBLIC
-#  ${catkin_INCLUDE_DIRS}
-#)
-
-
-#add_executable(franka_gripper_pick_place
-#  src/franka_gripper_pick_place.cpp
-#)
-
-#add_dependencies(franka_gripper_pick_place
-#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-#  ${catkin_EXPORTED_TARGETS}
-#  franka_gripper
-#)
-
-#target_link_libraries(franka_gripper_pick_place
-#   ${catkin_LIBRARIES}
-#   franka_gripper
-#)
-
-#target_include_directories(franka_gripper_pick_place SYSTEM PUBLIC
-#  ${catkin_INCLUDE_DIRS}
-#)
-
 ## Installation
-install(TARGETS franka_human_friendly_controllers
+install(TARGETS franka_robothon_controllers
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -137,7 +96,7 @@ install(DIRECTORY launch
 install(DIRECTORY config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
-install(FILES franka_human_friendly_controllers_plugin.xml
+install(FILES franka_robothon_controllers_plugin.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
@@ -151,9 +110,9 @@ if(CLANG_TOOLS)
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
   )
-  add_format_target(franka_human_friendly_controllers FILES ${SOURCES} ${HEADERS})
-  add_tidy_target(franka_human_friendly_controllers
+  add_format_target(franka_robothon_controllers FILES ${SOURCES} ${HEADERS})
+  add_tidy_target(franka_robothon_controllers
     FILES ${SOURCES}
-    DEPENDS franka_human_friendly_controllers
+    DEPENDS franka_robothon_controllers
   )
 endif()

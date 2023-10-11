@@ -23,11 +23,11 @@
 #include <ros/time.h>
 #include <Eigen/Dense>
 
-#include <franka_human_friendly_controllers/compliance_paramConfig.h>
+#include <franka_robothon_controllers/compliance_paramConfig.h>
 #include <franka_hw/franka_model_interface.h>
 #include <franka_hw/franka_state_interface.h>
 
-namespace franka_human_friendly_controllers {
+namespace franka_robothon_controllers {
 
 class CartesianVariableImpedanceController : public controller_interface::MultiInterfaceController<
                                                 franka_hw::FrankaModelInterface,
@@ -75,10 +75,10 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
   double duration_vibration;
   bool vibrate= false;
   // Dynamic reconfigure
-  std::unique_ptr<dynamic_reconfigure::Server<franka_human_friendly_controllers::compliance_paramConfig>>
+  std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>>
       dynamic_server_compliance_param_;
   ros::NodeHandle dynamic_reconfigure_compliance_param_node_;
-  void complianceParamCallback(franka_human_friendly_controllers::compliance_paramConfig& config,
+  void complianceParamCallback(franka_robothon_controllers::compliance_paramConfig& config,
                                uint32_t level);
 
   // Equilibrium pose subscriber
@@ -108,4 +108,4 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
 };
 
 
-}  // namespace franka_human_friendly_controllers
+}  // namespace franka_robothon_controllers

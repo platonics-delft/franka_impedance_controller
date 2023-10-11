@@ -13,4 +13,4 @@ To install:
 To run the controller:
 - Switch on your Panda robot (make sure the gripper is initialized correctly), unlock its joints (and activate the FCI if necessary).
 - Open a terminal, in every terminal: ```source devel/setup.bash```
-- ```roslaunch franka_human_friendly_controllers cartesian_variable_impedance_controller.launch robot_ip:=ROBOT_IP load_gripper:=True```
+- ```roslaunch franka_robothon_controllers cartesian_variable_impedance_controller.launch robot_ip:=ROBOT_IP load_gripper:=True```
