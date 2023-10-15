@@ -85,20 +85,6 @@ new_depend = '  franka_robothon_controllers'
 # new_depend = new_depend.replace("franka_advanced_controllers", input_string)
 search_and_paste(file_path, existing_depend, new_depend)
 
-package_name = 'franka_robothon_controllers'
-# Access the directory of a subdirectory
-
-package_dir= rospack.get_path(package_name)
-# Modify the controller to not have the joint repulsion that generated obscillations in sumulation 
-file_path = package_dir  + '/src/cartesian_variable_impedance_controller.cpp'
-print("Change files in directory")
-print(file_path)
-search_line= 'tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit;'
-new_line='tau_d << tau_task + tau_nullspace + coriolis;'
-replace_line(file_path, search_line, new_line)
-
-
-
 # MODIFY THE CLOCK
 file_path = os.path.join(subdirectory, 'launch/robot.launch')
 search_line = '<arg name="use_sim_time" value="true"/>'
