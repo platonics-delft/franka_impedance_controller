@@ -107,12 +107,21 @@ bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* rob
 
   dynamic_reconfigure_compliance_param_node_ =
       ros::NodeHandle("dynamic_reconfigure_compliance_param_node");
+  dynamic_reconfigure_mass_param_node_ =
+      ros::NodeHandle("dynamic_reconfigure_mass_param_node_");
 
   dynamic_server_compliance_param_.reset(
       new dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>(
           dynamic_reconfigure_compliance_param_node_));
+  dynamic_server_mass_param_.reset(
+      new dynamic_reconfigure::Server<franka_robothon_controllers::desired_mass_paramConfig>(
+          dynamic_reconfigure_compliance_param_node_));
+
   dynamic_server_compliance_param_->setCallback(
       boost::bind(&CartesianVariableImpedanceController::complianceParamCallback, this, _1, _2));
+
+  dynamic_server_mass_param_->setCallback(
+      boost::bind(&CartesianVariableImpedanceController::MassCameraParamCallback, this, _1, _2));    
 
   position_d_.setZero();
   orientation_d_.coeffs() << 0.0, 0.0, 0.0, 1.0;
@@ -149,6 +158,7 @@ void CartesianVariableImpedanceController::starting(const ros::Time& /*time*/) {
   // set nullspace equilibrium configuration to initial q
   q_d_nullspace_ = q_initial;
   force_torque_old.setZero();
+  wrench_camera.setZero();
   double time_old=ros::Time::now().toSec();
   count_vibration=1000;
 }
@@ -185,6 +195,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
   Eigen::Vector3d position(transform.translation());
   Eigen::Quaterniond orientation(transform.linear());
+  Eigen::Matrix3d rotationMatrix = orientation.toRotationMatrix();
   Eigen::Matrix<double, 7, 1>  tau_f;
   Eigen::MatrixXd jacobian_transpose_pinv;
   Eigen::MatrixXd jacobian_const_transpose_pinv;
@@ -299,6 +310,14 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   cartesian_force[4]=std::max(std::min(cartesian_force[4],30.0),-30.0);
   cartesian_force[5]=std::max(std::min(cartesian_force[5],30.0),-30.0);
 
+
+  // Compute the torque given from the mass of the camera 
+  Eigen::Vector3d rotatedVector = rotationMatrix * camera_offset;
+  Eigen::Vector3d torque = rotatedVector.cross(force);
+  wrench_camera.head(3) << force;
+  wrench_camera.tail(3) << torque;
+
+
   // Cartesian PD control with damping ratio = 1
   tau_task << jacobian.transpose() *
                   (cartesian_force -  cartesian_damping_ * (jacobian * dq)); //double critic damping
@@ -403,56 +422,6 @@ void CartesianVariableImpedanceController::equilibriumStiffnessCallback(
 
   nullspace_stiffness_target_= std::max(std::min(stiff_[6], float(50.0)), float(0.0));
 
-
-  dynamic_reconfigure::Config set_Kx;
-  dynamic_reconfigure::DoubleParameter param_X_double;
-  param_X_double.name = "translational_stiffness_X";
-  param_X_double.value = cartesian_stiffness_target_(0,0);
-  set_Kx.doubles = {param_X_double};
-  pub_stiff_update_.publish(set_Kx);
-
-  dynamic_reconfigure::Config set_Ky;
-  dynamic_reconfigure::DoubleParameter param_Y_double;
-  param_Y_double.name = "translational_stiffness_Y";
-  param_Y_double.value = cartesian_stiffness_target_(1,1);
-  set_Ky.doubles = {param_Y_double};
-  pub_stiff_update_.publish(set_Ky);
-
-  dynamic_reconfigure::Config set_Kz;
-  dynamic_reconfigure::DoubleParameter param_Z_double;
-  param_Z_double.name = "translational_stiffness_Z";
-  param_Z_double.value = cartesian_stiffness_target_(2,2);
-  set_Kz.doubles = {param_Z_double};
-  pub_stiff_update_.publish(set_Kz);
-
-  dynamic_reconfigure::Config set_K_alpha;
-  dynamic_reconfigure::DoubleParameter param_alpha_double;
-  param_alpha_double.name = "rotational_stiffness_X";
-  param_alpha_double.value = cartesian_stiffness_target_(3,3);
-  set_K_alpha.doubles = {param_alpha_double};
-  pub_stiff_update_.publish(set_K_alpha);
-
-  dynamic_reconfigure::Config set_K_beta;
-  dynamic_reconfigure::DoubleParameter param_beta_double;
-  param_beta_double.name = "rotational_stiffness_Y";
-  param_beta_double.value = cartesian_stiffness_target_(4,4);
-  set_K_beta.doubles = {param_beta_double};
-  pub_stiff_update_.publish(set_K_beta);
-
-  dynamic_reconfigure::Config set_K_gamma;
-  dynamic_reconfigure::DoubleParameter param_gamma_double;
-  param_gamma_double.name = "rotational_stiffness_Z";
-  param_gamma_double.value = cartesian_stiffness_target_(5,5);
-  set_K_gamma.doubles = {param_gamma_double};
-  pub_stiff_update_.publish(set_K_gamma);
-
-  dynamic_reconfigure::Config set_nullspace;
-  dynamic_reconfigure::DoubleParameter param_nullspace_double;
-  param_nullspace_double.name = "nullspace_stiffness";
-  param_nullspace_double.value = nullspace_stiffness_target_;
-  set_nullspace.doubles = {param_nullspace_double};
-  pub_stiff_update_.publish(set_nullspace);
-
 }
 
 void CartesianVariableImpedanceController::complianceParamCallback(
@@ -485,6 +454,17 @@ void CartesianVariableImpedanceController::complianceParamCallback(
   nullspace_stiffness_target_ = config.nullspace_stiffness;
 }
 
+void CartesianVariableImpedanceController::MassCameraParamCallback(
+    franka_robothon_controllers::desired_mass_paramConfig& config,
+    uint32_t /*level*/) {
+  camera_offset[0]=config.offset_x;
+  camera_offset[1]=config.offset_y;
+  camera_offset[2]=config.offset_z;
+  force[0]=0.0;
+  force[1]=0.0;
+  force[2]=- config.mass*9.81;
+}
+
 
 
 void CartesianVariableImpedanceController::equilibriumPoseCallback(
@@ -510,7 +490,7 @@ void CartesianVariableImpedanceController::equilibriumVibrationCallback( const s
   count_vibration = 0;
   duration_vibration = vibration_msg->data;
 
-}
+} 
 
 
 }  // namespace franka_robothon_controllers
