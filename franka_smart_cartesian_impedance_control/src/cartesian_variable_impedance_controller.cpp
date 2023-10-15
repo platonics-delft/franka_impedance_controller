@@ -249,7 +249,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   // compute "orientation error"
   error.tail(3) << error_quaternion_angle_axis.axis() * error_quaternion_angle_axis.angle();
 
-  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_nullspace_lim(7), tau_damping(7);
+  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_nullspace_lim(7), tau_damping(7), tau_mass_camera(7);
 
   tau_damping.setZero();
   // pseudoinverse for nullspace handling
@@ -319,6 +319,8 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
 
 
   // Cartesian PD control with damping ratio = 1
+
+  tau_mass_camera << jacobian.transpose() * wrench_camera;
   tau_task << jacobian.transpose() *
                   (cartesian_force -  cartesian_damping_ * (jacobian * dq)); //double critic damping
 
@@ -360,7 +362,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
       tau_joint_limit(6)=std::max(std::min(tau_joint_limit(6), 2.0), -2.0);
 
                 
-  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim+ tau_damping;
+  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim+ tau_damping- tau_mass_camera;
 
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
