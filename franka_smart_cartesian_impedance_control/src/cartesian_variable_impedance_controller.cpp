@@ -34,9 +34,6 @@ bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* rob
       "/vibration", 20, &CartesianVariableImpedanceController::equilibriumVibrationCallback, this,
       ros::TransportHints().reliable().tcpNoDelay());
 
-  pub_stiff_update_ = node_handle.advertise<dynamic_reconfigure::Config>(
-    "/dynamic_reconfigure_compliance_param_node/parameter_updates", 5);
-
   pub_cartesian_pose_= node_handle.advertise<geometry_msgs::PoseStamped>("/cartesian_pose",1);
 
   pub_force_torque_= node_handle.advertise<geometry_msgs::WrenchStamped>("/force_torque_ext",1);
@@ -108,14 +105,14 @@ bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* rob
   dynamic_reconfigure_compliance_param_node_ =
       ros::NodeHandle("dynamic_reconfigure_compliance_param_node");
   dynamic_reconfigure_mass_param_node_ =
-      ros::NodeHandle("dynamic_reconfigure_mass_param_node_");
+      ros::NodeHandle("dynamic_reconfigure_mass_param_node");
 
   dynamic_server_compliance_param_.reset(
       new dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>(
           dynamic_reconfigure_compliance_param_node_));
   dynamic_server_mass_param_.reset(
       new dynamic_reconfigure::Server<franka_robothon_controllers::desired_mass_paramConfig>(
-          dynamic_reconfigure_compliance_param_node_));
+          dynamic_reconfigure_mass_param_node_));
 
   dynamic_server_compliance_param_->setCallback(
       boost::bind(&CartesianVariableImpedanceController::complianceParamCallback, this, _1, _2));
@@ -459,12 +456,12 @@ void CartesianVariableImpedanceController::complianceParamCallback(
 void CartesianVariableImpedanceController::MassCameraParamCallback(
     franka_robothon_controllers::desired_mass_paramConfig& config,
     uint32_t /*level*/) {
-  camera_offset[0]=config.offset_x;
-  camera_offset[1]=config.offset_y;
-  camera_offset[2]=config.offset_z;
+  camera_offset[0]=config.offset_x * 0.001;
+  camera_offset[1]=config.offset_y * 0.001;
+  camera_offset[2]=config.offset_z * 0.001;
   force[0]=0.0;
   force[1]=0.0;
-  force[2]=- config.mass*9.81;
+  force[2]=- config.mass*9.81 * 0.001;
 }
 
 
