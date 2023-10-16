@@ -36,6 +36,7 @@ def replace_line(file_path, search_line, replace_line):
 # MAIN
 # MODIFY THE YAML FILE
 new_text_cartesian=''' 
+
 cartesian_variable_impedance_controller:
   type: franka_robothon_controllers/CartesianVariableImpedanceController 
   arm_id: $(arg arm_id)

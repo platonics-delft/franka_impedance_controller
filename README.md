@@ -14,3 +14,8 @@ To run the controller:
 - Switch on your Panda robot (make sure the gripper is initialized correctly), unlock its joints (and activate the FCI if necessary).
 - Open a terminal, in every terminal: ```source devel/setup.bash```
 - ```roslaunch franka_robothon_controllers cartesian_variable_impedance_controller.launch robot_ip:=ROBOT_IP load_gripper:=True```
+
+To run the simulation:
+- Open a terminal, in every terminal: ```source devel/setup.bash```
+```python3 setup.py```
+```roslaunch franka_gazebo panda.launch x:=-0.5 world:=$(rospack find franka_gazebo)/world/stone.sdf controller:=cartesian_variable_impedance_controller rviz:=true```
