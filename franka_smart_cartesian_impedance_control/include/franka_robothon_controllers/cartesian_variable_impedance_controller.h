@@ -25,6 +25,7 @@
 
 #include <franka_robothon_controllers/compliance_paramConfig.h>
 #include <franka_robothon_controllers/desired_mass_paramConfig.h>
+#include <franka_robothon_controllers/fake_mass_paramConfig.h>
 
 #include <franka_hw/franka_model_interface.h>
 #include <franka_hw/franka_state_interface.h>
@@ -76,6 +77,10 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
   Eigen::Vector3d force;
   Eigen::Matrix<double, 6, 1>  wrench_camera;
 
+  Eigen::Vector3d camera_offset_fake;
+  Eigen::Vector3d force_fake;
+  Eigen::Matrix<double, 6, 1>  wrench_camera_fake;
+
   
 
   double count_vibration{10000.0};
@@ -84,15 +89,22 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
   // Dynamic reconfigure
   std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>>
       dynamic_server_compliance_param_;
-std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::desired_mass_paramConfig>>
-      dynamic_server_mass_param_;        
+  std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::desired_mass_paramConfig>>
+      dynamic_server_mass_param_;    
+  std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::fake_mass_paramConfig>>
+      dynamic_server_fake_mass_param_;               
+
   ros::NodeHandle dynamic_reconfigure_compliance_param_node_;
   ros::NodeHandle dynamic_reconfigure_mass_param_node_;
+  ros::NodeHandle dynamic_reconfigure_fake_mass_param_node_;
 
   void complianceParamCallback(franka_robothon_controllers::compliance_paramConfig& config,
                                uint32_t level);
 
   void MassCameraParamCallback(franka_robothon_controllers::desired_mass_paramConfig& config,
+    uint32_t /*level*/);
+
+  void FakeMassCameraParamCallback(franka_robothon_controllers::fake_mass_paramConfig& config,
     uint32_t /*level*/);
                                
 

@@ -107,18 +107,32 @@ bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* rob
   dynamic_reconfigure_mass_param_node_ =
       ros::NodeHandle("dynamic_reconfigure_mass_param_node");
 
+  dynamic_reconfigure_fake_mass_param_node_ =
+      ros::NodeHandle("dynamic_reconfigure_fake_mass_param_node");    
+    
+
   dynamic_server_compliance_param_.reset(
       new dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>(
           dynamic_reconfigure_compliance_param_node_));
+
   dynamic_server_mass_param_.reset(
       new dynamic_reconfigure::Server<franka_robothon_controllers::desired_mass_paramConfig>(
           dynamic_reconfigure_mass_param_node_));
+
+  dynamic_server_fake_mass_param_.reset(
+      new dynamic_reconfigure::Server<franka_robothon_controllers::fake_mass_paramConfig>(
+          dynamic_reconfigure_fake_mass_param_node_));        
+
 
   dynamic_server_compliance_param_->setCallback(
       boost::bind(&CartesianVariableImpedanceController::complianceParamCallback, this, _1, _2));
 
   dynamic_server_mass_param_->setCallback(
       boost::bind(&CartesianVariableImpedanceController::MassCameraParamCallback, this, _1, _2));    
+
+  dynamic_server_fake_mass_param_->setCallback(
+      boost::bind(&CartesianVariableImpedanceController::FakeMassCameraParamCallback, this, _1, _2));
+
 
   position_d_.setZero();
   orientation_d_.coeffs() << 0.0, 0.0, 0.0, 1.0;
@@ -156,6 +170,7 @@ void CartesianVariableImpedanceController::starting(const ros::Time& /*time*/) {
   q_d_nullspace_ = q_initial;
   force_torque_old.setZero();
   wrench_camera.setZero();
+  wrench_camera_fake.setZero();
   double time_old=ros::Time::now().toSec();
   count_vibration=1000;
 }
@@ -246,7 +261,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   // compute "orientation error"
   error.tail(3) << error_quaternion_angle_axis.axis() * error_quaternion_angle_axis.angle();
 
-  Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_nullspace_lim(7), tau_damping(7), tau_mass_camera(7);
+   Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), null_vect(7),null_vect_lim(7),tau_joint_limit(7), tau_nullspace_lim(7), tau_damping(7);
 
   tau_damping.setZero();
   // pseudoinverse for nullspace handling
@@ -314,10 +329,16 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   wrench_camera.head(3) << force;
   wrench_camera.tail(3) << torque;
 
-
+  Eigen::Vector3d rotatedVector_fake = rotationMatrix * camera_offset_fake;
+  Eigen::Vector3d torque_fake = rotatedVector_fake.cross(force_fake);
+  wrench_camera_fake.head(3) << force_fake;
+  wrench_camera_fake.tail(3) << torque_fake;
   // Cartesian PD control with damping ratio = 1
-
+  Eigen::VectorXd tau_mass_camera(7);
   tau_mass_camera << jacobian.transpose() * wrench_camera;
+
+  Eigen::VectorXd tau_mass_camera_fake(7);
+  tau_mass_camera_fake << jacobian.transpose() * wrench_camera_fake;
   tau_task << jacobian.transpose() *
                   (cartesian_force -  cartesian_damping_ * (jacobian * dq)); //double critic damping
 
@@ -359,7 +380,7 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
       tau_joint_limit(6)=std::max(std::min(tau_joint_limit(6), 2.0), -2.0);
 
                 
-  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim+ tau_damping- tau_mass_camera;
+  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim+ tau_damping- tau_mass_camera + tau_mass_camera_fake;
 
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
@@ -463,6 +484,18 @@ void CartesianVariableImpedanceController::MassCameraParamCallback(
   force[1]=0.0;
   force[2]=- config.mass*9.81 * 0.001;
 }
+
+void CartesianVariableImpedanceController::FakeMassCameraParamCallback(
+    franka_robothon_controllers::fake_mass_paramConfig& config,
+    uint32_t /*level*/) {
+  camera_offset_fake[0]=config.offset_x * 0.001;
+  camera_offset_fake[1]=config.offset_y * 0.001;
+  camera_offset_fake[2]=config.offset_z * 0.001;
+  force_fake[0]=0.0;
+  force_fake[1]=0.0;
+  force_fake[2]=- config.fake_mass*9.81 * 0.001;
+}
+
 
 
 

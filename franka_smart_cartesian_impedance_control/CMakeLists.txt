@@ -34,6 +34,7 @@ generate_messages()
 generate_dynamic_reconfigure_options(
   cfg/compliance_param.cfg
   cfg/desired_mass_param.cfg
+  cfg/fake_mass_param.cfg
 )
 
 catkin_package(
