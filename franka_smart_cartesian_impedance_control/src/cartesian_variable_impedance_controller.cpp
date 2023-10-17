@@ -295,13 +295,13 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
   if (q(6)>2.5)       { nullspace_stiffness_lim=200.0; q_d_nullspace_lim(6)= 2.5;}  
   if (q(6)<-2.5)      { nullspace_stiffness_lim=200.0; q_d_nullspace_lim(6)=-2.5;} 
   
-  null_vect(0)=std::max(std::min((q_d_nullspace_(0) - q(0)),0.3),-0.3);
+  // null_vect(0)=std::max(std::min((q_d_nullspace_(0) - q(0)),0.3),-0.3);
   null_vect(1)=std::max(std::min((q_d_nullspace_(1) - q(1)),0.3),-0.3);
-  null_vect(2)=std::max(std::min((q_d_nullspace_(2) - q(2)),0.3),-0.3);
-  null_vect(3)=std::max(std::min((q_d_nullspace_(3) - q(3)),0.3),-0.3);
-  null_vect(4)=std::max(std::min((q_d_nullspace_(4) - q(4)),0.3),-0.3);
-  null_vect(5)=std::max(std::min((q_d_nullspace_(5) - q(5)),0.3),-0.3);
-  null_vect(6)=std::max(std::min((q_d_nullspace_(6) - q(6)),0.3),-0.3);
+  // null_vect(2)=std::max(std::min((q_d_nullspace_(2) - q(2)),0.3),-0.3);
+  // null_vect(3)=std::max(std::min((q_d_nullspace_(3) - q(3)),0.3),-0.3);
+  // null_vect(4)=std::max(std::min((q_d_nullspace_(4) - q(4)),0.3),-0.3);
+  // null_vect(5)=std::max(std::min((q_d_nullspace_(5) - q(5)),0.3),-0.3);
+  // null_vect(6)=std::max(std::min((q_d_nullspace_(6) - q(6)),0.3),-0.3);
 
   null_vect_lim(0)=std::max(std::min((q_d_nullspace_lim(0) - q(0)),0.3),-0.3);
   null_vect_lim(1)=std::max(std::min((q_d_nullspace_lim(1) - q(1)),0.3),-0.3);
