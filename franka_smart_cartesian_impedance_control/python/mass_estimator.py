@@ -4,6 +4,8 @@ import dynamic_reconfigure.client
 from panda_ros import Panda
 from panda_ros.pose_transform_functions import array_quat_2_pose, pose_2_transformation, orientation_2_quaternion, list_2_quaternion
 from geometry_msgs.msg import PoseStamped
+from quaternion_algebra.algebra import quaternion_divide, to_euler_angles
+from quaternion import as_euler_angles
 class MassEstimator(Panda):
     def __init__(self):
         rospy.init_node("mass_estimator_node")
@@ -12,18 +14,13 @@ class MassEstimator(Panda):
         self.goal_sub = rospy.Subscriber('/equilibrium_pose', PoseStamped, self.ee_pos_goal_callback)
         rospy.sleep(1)    
         self.estimated_mass=0
-
-    def estimate_mass(self):
-        curr_quat= list_2_quaternion(self.curr_ori)
-        curr_pose= array_quat_2_pose(self.curr_pos, curr_quat)
-        curr_tranformation= pose_2_transformation(curr_pose.pose)
-        orientation_matrix= curr_tranformation[0:3,0:3]
-        print("orientation_matrix")
-        print(orientation_matrix)
+        self.estimated_offset_x=0
+        self.estimated_offset_y=0
+        self.estimated_offset_z=0
 
     def rotate_right(self):
         pos_array = np.array([0.6, 0, 0.4])
-        quat = np.quaternion(1, 1, 0, 0)
+        quat = np.quaternion(0, 1, 0, 0)
         goal = array_quat_2_pose(pos_array, quat)
         goal.header.seq = 1
         goal.header.stamp = rospy.Time.now()
@@ -45,6 +42,34 @@ class MassEstimator(Panda):
     def esitmate_mass(self):
         self.estimated_mass=self.estimated_mass+np.sign(self.curr_pos_goal[2]-self.curr_pos[2])
         self.set_mass.update_configuration({"mass": self.estimated_mass})
+        
+        curr_quat= list_2_quaternion(self.curr_ori)
+        # print(curr_quat)
+        curr_pose= array_quat_2_pose(self.curr_pos, curr_quat)
+        curr_tranformation= pose_2_transformation(curr_pose.pose)
+        orientation_matrix_transpose= np.transpose(curr_tranformation[0:2,:])
+        goal_quat = list_2_quaternion(self.curr_ori_goal)
+        # print("goal_quat")
+        # print(goal_quat)
+        quat_diff= quaternion_divide(goal_quat, curr_quat ) # curr -gaol
+        # print("quat_diff")
+        # print(quat_diff)
+        euler= to_euler_angles(quat_diff)
+
+        print("euler")
+        print(euler)
+
+        gradient= orientation_matrix_transpose @ np.array([euler[1], - euler[0]])
+        # print("gradiet")
+        # print(gradiet)
+        self.estimated_offset_x=self.estimated_offset_x-np.sign(gradient[0])
+        self.estimated_offset_y=self.estimated_offset_y-np.sign(gradient[1])
+        self.estimated_offset_z=self.estimated_offset_z-np.sign(gradient[2])
+        self.set_mass.update_configuration({"offset_x": self.estimated_offset_x})
+        self.set_mass.update_configuration({"offset_y": self.estimated_offset_y})
+        self.set_mass.update_configuration({"offset_z": self.estimated_offset_z})
+
+
         
 
 if __name__ == '__main__':
