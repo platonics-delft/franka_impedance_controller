@@ -380,7 +380,8 @@ void CartesianVariableImpedanceController::update(const ros::Time& /*time*/,
       tau_joint_limit(6)=std::max(std::min(tau_joint_limit(6), 2.0), -2.0);
 
                 
-  tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim+ tau_damping- tau_mass_camera + tau_mass_camera_fake;
+  // tau_d << tau_task + tau_nullspace + coriolis+ tau_joint_limit+tau_nullspace_lim+ tau_damping- tau_mass_camera + tau_mass_camera_fake;
+  tau_d << tau_task + coriolis- tau_mass_camera + tau_mass_camera_fake;
 
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
