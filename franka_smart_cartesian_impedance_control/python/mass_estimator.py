@@ -17,10 +17,7 @@ class MassEstimator(Panda):
         self.estimated_offset_y=0
         self.estimated_offset_z=0
 
-    def ee_pos_goal_callback(self, curr_conf):
-        self.curr_pos_goal = np.array([curr_conf.pose.position.x, curr_conf.pose.position.y, curr_conf.pose.position.z])
-        self.curr_ori_goal = np.array([curr_conf.pose.orientation.w, curr_conf.pose.orientation.x, curr_conf.pose.orientation.y, curr_conf.pose.orientation.z])
-
+        
     def set_nullspace(self):
         self.set_configuration(self.curr_joint)
     def esitmate_mass(self):
@@ -30,6 +27,7 @@ class MassEstimator(Panda):
         # self.estimated_mass=self.estimated_mass+np.sign(self.curr_pos_goal[2]-self.curr_pos[2])*2
         self.set_mass.update_configuration({"mass": self.estimated_mass})
     def estimate_offset_plane(self):    
+        K_x = self.set_K.update_configuration({})['translational_stiffness_X'] *1
         curr_quat= list_2_quaternion(self.curr_ori)
         curr_pose= array_quat_2_pose(self.curr_pos, curr_quat)
         curr_tranformation= pose_2_transformation(curr_pose.pose)
@@ -39,9 +37,11 @@ class MassEstimator(Panda):
         euler= to_euler_angles(quat_diff)
 
         gradient= orientation_matrix_transpose @ np.array([euler[1], - euler[0]])
-        self.estimated_offset_x=self.estimated_offset_x- np.floor(gradient[0]* self.estimated_mass *10)
-        self.estimated_offset_y=self.estimated_offset_y- np.floor(gradient[1]* self.estimated_mass * 10 )
+        # self.estimated_mass=self.estimated_mass+np.floor(np.clip((self.curr_pos_goal[2]-self.curr_pos[2])*K_x*10, -30, 30))
+        self.estimated_offset_x=self.estimated_offset_x- np.clip(gradient[0]* self.estimated_mass *10, -10, 10)
+        self.estimated_offset_y=self.estimated_offset_y- np.clip(gradient[1]* self.estimated_mass * 10, -10, 10)
         # self.estimated_offset_z=self.estimated_offset_z-np.sign(gradient[2])
+        # self.set_mass.update_configuration({"mass": self.estimated_mass})
         self.set_mass.update_configuration({"offset_x": self.estimated_offset_x})
         self.set_mass.update_configuration({"offset_y": self.estimated_offset_y})
 
@@ -57,7 +57,7 @@ class MassEstimator(Panda):
         gradient= orientation_matrix_transpose @ np.array([euler[1], - euler[0]])
         # self.estimated_offset_x=self.estimated_offset_x-np.sign(gradient[0])
         # self.estimated_offset_y=self.estimated_offset_y-np.sign(gradient[1])
-        self.estimated_offset_z=self.estimated_offset_z- np.floor(gradient[2]* self.estimated_mass *10)
+        self.estimated_offset_z=self.estimated_offset_z- np.clip(gradient[2]* self.estimated_mass *10, -10, 10)
         # self.set_mass.update_configuration({"offset_x": self.estimated_offset_x})
         # self.set_mass.update_configuration({"offset_y": self.estimated_offset_y})
         self.set_mass.update_configuration({"offset_z": self.estimated_offset_z})
@@ -74,34 +74,61 @@ if __name__ == '__main__':
     amplitude = 30/180*np.pi
     t = np.linspace(0, 2 * np.pi, n)  # Create 'n' evenly spaced points from 0 to 2*pi
     sine_wave_values = amplitude * np.sin(t)
-    quat_start=list_2_quaternion(Estimator.curr_ori)
+    quat_start=list_2_quaternion(Estimator.curr_ori_goal)
     pos_start=Estimator.curr_pos_goal
     Estimator.set_configuration(Estimator.curr_joint)
-    Estimator.set_stiffness(1000,1000,1000,20,20,20,0.2)
-    for _ in range (40):
-        Estimator.esitmate_mass()
-        rospy.sleep(1)
-    for _ in range (40):
-        Estimator.estimate_offset_plane()
-        rospy.sleep(1)    
+    Estimator.set_stiffness(4000,4000,4000,100,100,100,0)
+    print("goal quat")
+    print(quat_start)
+    Estimator.offset_compensator(30)
+    # for _ in range (60):
+    #     Estimator.esitmate_mass()
+    #     rospy.sleep(1)
+    # for _ in range (60):
+    #     Estimator.estimate_offset_plane()
+    #     rospy.sleep(1)    
+        
+    # #TEST
+    # quat_diff=from_euler_angles(0, 0, -45/180*np.pi)
+    # quat=quaternion_product(quat_diff, quat_start )
+    # goal_pose = array_quat_2_pose(Estimator.curr_pos_goal, quat)
+    # Estimator.go_to_pose(goal_pose)
+    # print("goal pose")
+    # print(goal_pose)
+    # rospy.sleep(10)
+    
+    # quat_diff=from_euler_angles(0, 0, -90/180*np.pi)
+    # quat=quaternion_product(quat_diff, quat_start )
+    # goal_pose = array_quat_2_pose(Estimator.curr_pos_goal, quat)
+    # Estimator.go_to_pose(goal_pose)
+    # print("goal pose")
+    # print(goal_pose)
+    # rospy.sleep(10)
+        
+        
+    '''    
     quat_diff=from_euler_angles(-60/180*np.pi, 0, 0)
     quat=quaternion_product(quat_diff, quat_start )
     goal_pose = array_quat_2_pose(Estimator.curr_pos_goal, quat)
-    Estimator.set_stiffness(1000,1000,1000,20,20,20,0)
+    Estimator.set_stiffness(100,100,100,2,2,2,0)
     Estimator.go_to_pose(goal_pose)
     Estimator.set_configuration(Estimator.curr_joint)
-    Estimator.set_stiffness(1000,1000,1000,20,20,20,0.2)
-    for _ in range (40):
+    Estimator.set_stiffness(100,100,100,2,2,2,0)
+    print("goal pose")
+    print(goal_pose)
+    for _ in range (60):
         Estimator.estimate_offset_vertical()
         rospy.sleep(1)
 
     quat_diff=from_euler_angles(60/180*np.pi, 0, 0)
     quat=quaternion_product(quat_diff, quat_start )
     goal_pose = array_quat_2_pose(Estimator.curr_pos_goal, quat)
-    Estimator.set_stiffness(1000,1000,1000,20,20,20,0)
+    #Estimator.set_stiffness(1000,1000,1000,20,20,20,0)
     Estimator.go_to_pose(goal_pose)
     Estimator.set_configuration(Estimator.curr_joint)
-    Estimator.set_stiffness(1000,1000,1000,20,20,20,0.2)
+    print("goal pose")
+    print(goal_pose)
+    #Estimator.set_stiffness(1000,1000,1000,20,20,20,0.2)
     for _ in range (40):
         Estimator.estimate_offset_vertical()
         rospy.sleep(1)    
@@ -116,5 +143,5 @@ if __name__ == '__main__':
     #     for _ in range (20):
     #         rospy.sleep(0.05)
     #         Estimator.estimate_offset()
-            
+    '''
 
