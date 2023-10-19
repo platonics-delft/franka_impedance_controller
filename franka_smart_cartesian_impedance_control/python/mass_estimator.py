@@ -13,37 +13,36 @@ class MassEstimator(Panda):
         super(MassEstimator, self).__init__()
         self.set_mass = dynamic_reconfigure.client.Client('/dynamic_reconfigure_mass_param_node', config_callback=None)
         self.goal_sub = rospy.Subscriber('/equilibrium_pose', PoseStamped, self.ee_pos_goal_callback)
-        self.marker_pub = rospy.Publisher('camera_mass', Marker, queue_size=10)
+        self.marker_pub = rospy.Publisher('/camera_mass', Marker, queue_size=0)
         rospy.sleep(1)    
-        self.estimated_mass=0
-        self.estimated_offset_x=0
-        self.estimated_offset_y=0
-        self.estimated_offset_z=0
+        self.estimated_mass=200
+        self.estimated_offset_x=40
+        self.estimated_offset_y=20
+        self.estimated_offset_z=-50
     def visualize_mass(self):
-        while not(self.end):
-            # Create a marker message
-            marker = Marker()
-            marker.header.frame_id = "panda_EE"
-            marker.type = Marker.SPHERE
-            marker.action = Marker.ADD
-            marker.scale = Vector3(self.estimated_mass * 1000, self.estimated_mass * 1000, self.estimated_mass* 1000)  # Dimensions of the ellipsoid
-            marker.color.r = 1.0
-            marker.color.g = 0.0
-            marker.color.b = 0.0
-            marker.color.a = 0.8
+        # Create a marker message
+        marker = Marker()
+        marker.header.frame_id = "panda_EE"
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.scale = Vector3(self.estimated_mass * 100000, self.estimated_mass * 100000, self.estimated_mass* 100000)  # Dimensions of the ellipsoid
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 0.8
 
-            # Set the position and orientation of the ellipsoid
-            marker.pose.position.x = self.estimatd_offset_x
-            marker.pose.position.y = self.estimatd_offset_y
-            marker.pose.position.z = self.estimatd_offset_z
-            marker.pose.orientation.x = 0.0
-            marker.pose.orientation.y = 0.0
-            marker.pose.orientation.z = 0.0
-            marker.pose.orientation.w = 1.0
+        # Set the position and orientation of the ellipsoid
+        marker.pose.position.x = self.estimated_offset_x*10000
+        marker.pose.position.y = self.estimated_offset_y*10000
+        marker.pose.position.z = self.estimated_offset_z*10000
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
 
-
-            # Publish the marker
-            self.marker_pub.publish(marker)
+        print("publish marker")
+        # Publish the marker
+        self.marker_pub.publish(marker)
 
         
     def set_nullspace(self):
@@ -54,6 +53,7 @@ class MassEstimator(Panda):
         self.estimated_mass=self.estimated_mass+np.floor(np.clip((self.curr_pos_goal[2]-self.curr_pos[2])*K_x*10, -30, 30))
         # self.estimated_mass=self.estimated_mass+np.sign(self.curr_pos_goal[2]-self.curr_pos[2])*2
         self.set_mass.update_configuration({"mass": self.estimated_mass})
+        self.visualize_mass()
     def estimate_offset_plane(self):    
         K_x = self.set_K.update_configuration({})['translational_stiffness_X'] *1
         curr_quat= list_2_quaternion(self.curr_ori)
@@ -72,6 +72,7 @@ class MassEstimator(Panda):
         # self.set_mass.update_configuration({"mass": self.estimated_mass})
         self.set_mass.update_configuration({"offset_x": self.estimated_offset_x})
         self.set_mass.update_configuration({"offset_y": self.estimated_offset_y})
+        self.visualize_mass()
 
     def estimate_offset_vertical(self):
         curr_quat= list_2_quaternion(self.curr_ori)
@@ -89,6 +90,7 @@ class MassEstimator(Panda):
         # self.set_mass.update_configuration({"offset_x": self.estimated_offset_x})
         # self.set_mass.update_configuration({"offset_y": self.estimeated_offset_y})
         self.set_mass.update_configuration({"offset_z": self.estimatd_offset_z})
+        self.visualize_mass()
 
 
 
@@ -108,13 +110,13 @@ if __name__ == '__main__':
     Estimator.set_stiffness(4000,4000,4000,100,100,100,0)
     print("goal quat")
     print(quat_start)
-    Estimator.offset_compensator(30)
-    # for _ in range (60):
-    #     Estimator.esitmate_mass()
-    #     rospy.sleep(1)
-    # for _ in range (60):
-    #     Estimator.estimate_offset_plane()
-    #     rospy.sleep(1)    
+    #Estimator.offset_compensator(30)
+    for _ in range (60):
+        Estimator.esitmate_mass()
+        rospy.sleep(1)
+    for _ in range (60):
+        Estimator.estimate_offset_plane()
+        rospy.sleep(1)    
         
     # #TEST
     # quat_diff=from_euler_angles(0, 0, -45/180*np.pi)
