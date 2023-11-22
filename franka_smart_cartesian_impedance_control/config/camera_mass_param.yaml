@@ -1,4 +1,4 @@
-mass: 200  # initial mass value in grams
-offset_x: 200  # initial x offset in mm
+mass: 100  # initial mass value in grams
+offset_x: 50  # initial x offset in mm
 offset_y: 0  # initial y offset in mm
-offset_z: -200  # initial z offset in mm
+offset_z: -50  # initial z offset in mm
