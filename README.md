@@ -12,7 +12,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build .
 ```
 
-In the next step, we install the ROS-wrapper (we assume that you have set up a real-time kernel with ROS) for the communication with the robot:
+In the next step, we install franka ros (we assume that you have set up a real-time kernel with ROS) for communication with the robot:
 
 ```
 cd $HOME
@@ -25,7 +25,7 @@ rosdep install --from-paths src --ignore-src --rosdistro <ros-distro> -y --skip-
 source devel/setup.sh
 ```
 
-Finally, we can install the custom controller used by the Platonics in the robothon 2023 using the following:
+Finally, we can install the custom controller used by the Platonics in the Robothon 2023 using the following:
 
 ```
 roscd franka_ros
@@ -35,13 +35,21 @@ cd ..
 source /opt/ros/<ros-distro>/setup.bash
 catkin_make -DMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build
 ```
-
-To run the simulation:
-- Open a terminal, in every terminal: ```source devel/setup.bash```
-```python3 setup.py```
-```roslaunch franka_gazebo panda.launch x:=-0.5 world:=$(rospack find franka_gazebo)/world/stone.sdf controller:=cartesian_variable_impedance_controller rviz:=true```
 You can now run the controller using:
 
 ```
-roslaunch franka_human_friendly_controllers cartesian_variable_impedance_controller.launch robot_ip:=ROBOT_IP load_gripper:=True
+roslaunch franka_robothon_controllers cartesian_variable_impedance_controller.launch robot_ip:=ROBOT_IP load_gripper:=True
 ```
+
+To run the gazebo simulation:
+
+- Open a terminal, in every terminal: 
+  
+```
+source devel/setup.bash
+
+roscd franka_robothon_controllers
+
+python3 setup_gazebo.py
+
+roslaunch franka_gazebo panda.launch x:=-0.5 world:=$(rospack find franka_gazebo)/world/stone.sdf controller:=cartesian_variable_impedance_controller rviz:=true```
