@@ -29,7 +29,7 @@ Finally, we can install the custom controller used by the Platonics in the Robot
 
 ```
 roscd franka_ros
-git clone git@github.com:platonics-delft/franka_control_robothon_challenge.git
+git clone git@github.com:platonics-delft/franka_robothon_controllers.git
 roscd
 cd ..
 source /opt/ros/<ros-distro>/setup.bash
