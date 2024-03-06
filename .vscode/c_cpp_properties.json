@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/oem/Desktop/PostDoc/cleaning_robothon_challenge_code/workspace/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/oem/Desktop/PostDoc/cleaning_robothon_challenge_code/workspace/src/franka_ros/franka_control/include/**",
+        "/home/oem/Desktop/PostDoc/cleaning_robothon_challenge_code/workspace/src/franka_ros/franka_example_controllers/include/**",
+        "/home/oem/Desktop/PostDoc/cleaning_robothon_challenge_code/workspace/src/franka_ros/franka_gazebo/include/**",
+        "/home/oem/Desktop/PostDoc/cleaning_robothon_challenge_code/workspace/src/franka_ros/franka_gripper/include/**",
+        "/home/oem/Desktop/PostDoc/cleaning_robothon_challenge_code/workspace/src/franka_ros/franka_hw/include/**",
+        "/home/oem/Desktop/PostDoc/cleaning_robothon_challenge_code/workspace/src/franka_ros/franka_control_robothon_challenge/franka_smart_cartesian_impedance_control/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
