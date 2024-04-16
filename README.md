@@ -42,7 +42,7 @@ roslaunch franka_robothon_controllers cartesian_variable_impedance_controller.la
 
 To run the gazebo simulation:
 
-- Open a terminal, in every terminal: 
+- To setup gazebo, go in your workspace: 
   
 ```
 source devel/setup.bash
@@ -50,5 +50,8 @@ source devel/setup.bash
 roscd franka_robothon_controllers
 
 python3 setup_gazebo.py
-
-roslaunch franka_gazebo panda.launch x:=-0.5 world:=$(rospack find franka_gazebo)/world/stone.sdf controller:=cartesian_variable_impedance_controller rviz:=true```
+```
+To launch the controller: 
+```
+roslaunch franka_gazebo panda.launch x:=-0.5 world:=$(rospack find franka_gazebo)/world/stone.sdf controller:=cartesian_variable_impedance_controller rviz:=true
+```
