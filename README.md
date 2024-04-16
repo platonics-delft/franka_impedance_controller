@@ -30,7 +30,7 @@ Finally, we can install the custom controller used by the Platonics in the Robot
 ```
 cd src/franka_ros
 git clone https://github.com/platonics-delft/franka_robothon_controllers.git
-cd ..
+cd ../..
 source /opt/ros/<ros-distro>/setup.bash
 catkin build -DMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build
 ```
