@@ -28,12 +28,11 @@ source devel/setup.sh
 Finally, we can install the custom controller used by the Platonics in the Robothon 2023 using the following:
 
 ```
-roscd franka_ros
-git clone git@github.com:platonics-delft/franka_robothon_controllers.git
-roscd
+cd src/franka_ros
+git clone https://github.com/platonics-delft/franka_robothon_controllers.git
 cd ..
 source /opt/ros/<ros-distro>/setup.bash
-catkin_make -DMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build
+catkin build -DMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build
 ```
 You can now run the controller using:
 
