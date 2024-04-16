@@ -22,7 +22,6 @@ source /opt/ros/<ros-distro>/setup.sh
 catkin_init_workspace src
 git clone --recursive https://github.com/frankaemika/franka_ros src/franka_ros
 rosdep install --from-paths src --ignore-src --rosdistro <ros-distro> -y --skip-keys libfranka
-source devel/setup.sh
 ```
 
 Finally, we can install the custom controller used by the Platonics in the Robothon 2023 using the following:
