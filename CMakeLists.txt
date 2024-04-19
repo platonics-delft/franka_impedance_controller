@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4)
-project(franka_robothon_controllers)
+project(franka_impedance_controller)
 
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 14)
@@ -38,7 +38,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES franka_robothon_controllers
+  LIBRARIES franka_impedance_controller
   CATKIN_DEPENDS
     controller_interface
     dynamic_reconfigure
@@ -56,11 +56,11 @@ catkin_package(
   DEPENDS Franka
 )
 
-add_library(franka_robothon_controllers
+add_library(franka_impedance_controller
   src/cartesian_variable_impedance_controller.cpp
 )
 
-add_dependencies(franka_robothon_controllers
+add_dependencies(franka_impedance_controller
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_generate_messages_cpp
@@ -68,21 +68,21 @@ add_dependencies(franka_robothon_controllers
   ${PROJECT_NAME}_gencfg
 )
 
-target_link_libraries(franka_robothon_controllers PUBLIC
+target_link_libraries(franka_impedance_controller PUBLIC
   ${Franka_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
-target_include_directories(franka_robothon_controllers SYSTEM PUBLIC
+target_include_directories(franka_impedance_controller SYSTEM PUBLIC
   ${Franka_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
-target_include_directories(franka_robothon_controllers PUBLIC
+target_include_directories(franka_impedance_controller PUBLIC
   include
 )
 ## Installation
-install(TARGETS franka_robothon_controllers
+install(TARGETS franka_impedance_controller
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -96,7 +96,7 @@ install(DIRECTORY launch
 install(DIRECTORY config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
-install(FILES franka_robothon_controllers_plugin.xml
+install(FILES franka_impedance_controller_plugin.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
@@ -110,9 +110,9 @@ if(CLANG_TOOLS)
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
   )
-  add_format_target(franka_robothon_controllers FILES ${SOURCES} ${HEADERS})
-  add_tidy_target(franka_robothon_controllers
+  add_format_target(franka_impedance_controller FILES ${SOURCES} ${HEADERS})
+  add_tidy_target(franka_impedance_controller
     FILES ${SOURCES}
-    DEPENDS franka_robothon_controllers
+    DEPENDS franka_impedance_controller
   )
 endif()

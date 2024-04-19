@@ -1,5 +1,5 @@
 cartesian_variable_impedance_controller:
-    type: franka_robothon_controllers/CartesianVariableImpedanceController
+    type: franka_impedance_controller/CartesianVariableImpedanceController
     arm_id: panda
     joint_names:
         - panda_joint1

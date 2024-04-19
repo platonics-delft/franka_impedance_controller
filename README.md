@@ -28,7 +28,7 @@ Finally, we can install the custom controller used by the Platonics in the Robot
 
 ```
 cd src/franka_ros
-git clone https://github.com/platonics-delft/franka_robothon_controllers.git
+git clone https://github.com/platonics-delft/franka_impedance_controller.git
 cd ../..
 source /opt/ros/<ros-distro>/setup.bash
 catkin build -DMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build
@@ -36,7 +36,7 @@ catkin build -DMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build
 You can now run the controller using:
 
 ```
-roslaunch franka_robothon_controllers cartesian_variable_impedance_controller.launch robot_ip:=ROBOT_IP load_gripper:=True
+roslaunch franka_impedance_controller cartesian_variable_impedance_controller.launch robot_ip:=ROBOT_IP load_gripper:=True
 ```
 
 To run the gazebo simulation:
@@ -46,7 +46,7 @@ To run the gazebo simulation:
 ```
 source devel/setup.bash
 
-roscd franka_robothon_controllers
+roscd franka_impedance_controller
 
 python3 setup_gazebo.py
 ```

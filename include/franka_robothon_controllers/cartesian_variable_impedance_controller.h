@@ -23,13 +23,13 @@
 #include <ros/time.h>
 #include <Eigen/Dense>
 
-#include <franka_robothon_controllers/compliance_paramConfig.h>
-#include <franka_robothon_controllers/desired_mass_paramConfig.h>
+#include <franka_impedance_controller/compliance_paramConfig.h>
+#include <franka_impedance_controller/desired_mass_paramConfig.h>
 
 #include <franka_hw/franka_model_interface.h>
 #include <franka_hw/franka_state_interface.h>
 
-namespace franka_robothon_controllers {
+namespace franka_impedance_controller {
 
 class CartesianVariableImpedanceController : public controller_interface::MultiInterfaceController<
                                                 franka_hw::FrankaModelInterface,
@@ -82,17 +82,17 @@ class CartesianVariableImpedanceController : public controller_interface::MultiI
   double duration_vibration;
   bool vibrate= false;
   // Dynamic reconfigure
-  std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>>
+  std::unique_ptr<dynamic_reconfigure::Server<franka_impedance_controller::compliance_paramConfig>>
       dynamic_server_compliance_param_;
-std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::desired_mass_paramConfig>>
+std::unique_ptr<dynamic_reconfigure::Server<franka_impedance_controller::desired_mass_paramConfig>>
       dynamic_server_mass_param_;        
   ros::NodeHandle dynamic_reconfigure_compliance_param_node_;
   ros::NodeHandle dynamic_reconfigure_mass_param_node_;
 
-  void complianceParamCallback(franka_robothon_controllers::compliance_paramConfig& config,
+  void complianceParamCallback(franka_impedance_controller::compliance_paramConfig& config,
                                uint32_t level);
 
-  void MassCameraParamCallback(franka_robothon_controllers::desired_mass_paramConfig& config,
+  void MassCameraParamCallback(franka_impedance_controller::desired_mass_paramConfig& config,
     uint32_t /*level*/);
                                
 
@@ -123,4 +123,4 @@ std::unique_ptr<dynamic_reconfigure::Server<franka_robothon_controllers::desired
 };
 
 
-}  // namespace franka_robothon_controllers
+}  // namespace franka_impedance_controller

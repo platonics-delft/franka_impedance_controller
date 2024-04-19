@@ -38,7 +38,7 @@ def replace_line(file_path, search_line, replace_line):
 new_text_cartesian=''' 
 
 cartesian_variable_impedance_controller:
-  type: franka_robothon_controllers/CartesianVariableImpedanceController 
+  type: franka_impedance_controller/CartesianVariableImpedanceController 
   arm_id: $(arg arm_id)
   joint_names:
     - $(arg arm_id)_joint1
@@ -71,7 +71,7 @@ file_path = os.path.join(subdirectory, 'package.xml')
 print("Change files")
 print(file_path)
 existing_depend = '<depend>franka_example_controllers</depend>'
-new_depend = '  <depend>franka_robothon_controllers</depend>'
+new_depend = '  <depend>franka_impedance_controller</depend>'
 
 # new_depend = new_depend.replace("franka_advanced_controllers", input_string)
 search_and_paste(file_path, existing_depend, new_depend)
@@ -81,7 +81,7 @@ file_path = os.path.join(subdirectory, 'CMakeLists.txt')
 print("Change files in directory")
 print(file_path)
 existing_depend = 'franka_example_controllers'
-new_depend = '  franka_robothon_controllers'
+new_depend = '  franka_impedance_controller'
 
 # new_depend = new_depend.replace("franka_advanced_controllers", input_string)
 search_and_paste(file_path, existing_depend, new_depend)

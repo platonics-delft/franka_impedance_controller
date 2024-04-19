@@ -3,17 +3,17 @@
 
 //This code has been modified by Giovanni Franzese. For questions: g.franzese@tudelft.nl
 
-#include <franka_robothon_controllers/cartesian_variable_impedance_controller.h>
+#include <franka_impedance_controller/cartesian_variable_impedance_controller.h>
 
 #include <cmath>
 
 #include <controller_interface/controller_base.h>
-#include <franka_robothon_controllers/franka_model.h>
+#include <franka_impedance_controller/franka_model.h>
 #include <franka/robot_state.h>
 #include <pluginlib/class_list_macros.h>
 #include <ros/ros.h>
-#include <franka_robothon_controllers/pseudo_inversion.h>
-namespace franka_robothon_controllers {
+#include <franka_impedance_controller/pseudo_inversion.h>
+namespace franka_impedance_controller {
 
 bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* robot_hw,
                                                ros::NodeHandle& node_handle) {
@@ -108,10 +108,10 @@ bool CartesianVariableImpedanceController::init(hardware_interface::RobotHW* rob
       ros::NodeHandle("dynamic_reconfigure_mass_param_node");
 
   dynamic_server_compliance_param_.reset(
-      new dynamic_reconfigure::Server<franka_robothon_controllers::compliance_paramConfig>(
+      new dynamic_reconfigure::Server<franka_impedance_controller::compliance_paramConfig>(
           dynamic_reconfigure_compliance_param_node_));
   dynamic_server_mass_param_.reset(
-      new dynamic_reconfigure::Server<franka_robothon_controllers::desired_mass_paramConfig>(
+      new dynamic_reconfigure::Server<franka_impedance_controller::desired_mass_paramConfig>(
           dynamic_reconfigure_mass_param_node_));
 
   dynamic_server_compliance_param_->setCallback(
@@ -424,7 +424,7 @@ void CartesianVariableImpedanceController::equilibriumStiffnessCallback(
 }
 
 void CartesianVariableImpedanceController::complianceParamCallback(
-    franka_robothon_controllers::compliance_paramConfig& config,
+    franka_impedance_controller::compliance_paramConfig& config,
     uint32_t /*level*/) {
   cartesian_stiffness_target_.setIdentity();
   cartesian_stiffness_target_(0,0)=config.translational_stiffness_X;
@@ -454,7 +454,7 @@ void CartesianVariableImpedanceController::complianceParamCallback(
 }
 
 void CartesianVariableImpedanceController::MassCameraParamCallback(
-    franka_robothon_controllers::desired_mass_paramConfig& config,
+    franka_impedance_controller::desired_mass_paramConfig& config,
     uint32_t /*level*/) {
   camera_offset[0]=config.offset_x * 0.001;
   camera_offset[1]=config.offset_y * 0.001;
@@ -492,7 +492,7 @@ void CartesianVariableImpedanceController::equilibriumVibrationCallback( const s
 } 
 
 
-}  // namespace franka_robothon_controllers
+}  // namespace franka_impedance_controller
 
-PLUGINLIB_EXPORT_CLASS(franka_robothon_controllers::CartesianVariableImpedanceController,
+PLUGINLIB_EXPORT_CLASS(franka_impedance_controller::CartesianVariableImpedanceController,
                        controller_interface::ControllerBase)

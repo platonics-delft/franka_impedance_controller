@@ -2,13 +2,13 @@
 <launch>
   <arg name="robot_ip" />
   <arg name="load_gripper" default="true" />
-  <include file="$(find franka_robothon_controllers)/launch/franka_control.launch" >
+  <include file="$(find franka_impedance_controller)/launch/franka_control.launch" >
     <arg name="robot_ip" value="$(arg robot_ip)" />
     <arg name="load_gripper" value="$(arg load_gripper)" />
   </include>
 
-  <rosparam command="load" file="$(find franka_robothon_controllers)/config/franka_robothon_controllers.yaml" />
+  <rosparam command="load" file="$(find franka_impedance_controller)/config/franka_impedance_controller.yaml" />
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="cartesian_variable_impedance_controller"/>
-  <node pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find franka_robothon_controllers)/launch/rviz/franka_description_with_marker.rviz"/>
+  <node pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find franka_impedance_controller)/launch/rviz/franka_description_with_marker.rviz"/>
   <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" required="false" />
 </launch>

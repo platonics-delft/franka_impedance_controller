@@ -11,7 +11,7 @@
 #include <Eigen/LU>
 #include <Eigen/SVD>
 
-namespace franka_robothon_controllers {
+namespace franka_impedance_controller {
 
 inline void pseudoInverse(const Eigen::MatrixXd& M_, Eigen::MatrixXd& M_pinv_, bool damped = true) {
   double lambda_ = damped ? 0.2 : 0.0;
@@ -27,4 +27,4 @@ inline void pseudoInverse(const Eigen::MatrixXd& M_, Eigen::MatrixXd& M_pinv_, b
   M_pinv_ = Eigen::MatrixXd(svd.matrixV() * S_.transpose() * svd.matrixU().transpose());
 }
 
-}  // namespace franka_robothon_controllers
+}  // namespace franka_impedance_controller

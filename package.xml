@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>franka_robothon_controllers</name>
+  <name>franka_impedance_controller</name>
   <version>0.8.1</version>
   <description> This is part of human friendly controllers</description>
   <maintainer email="g.franzese@tudelft.nl">Giovanni Franzese</maintainer>
@@ -37,6 +37,6 @@
   <exec_depend>rospy</exec_depend>
 
   <export>
-    <controller_interface plugin="${prefix}/franka_robothon_controllers_plugin.xml"/>
+    <controller_interface plugin="${prefix}/franka_impedance_controller_plugin.xml"/>
   </export>
 </package>
